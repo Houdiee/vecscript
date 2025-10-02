@@ -1,4 +1,3 @@
-// TODO: ADD COMMENT AND SKIP WHITESPACE
 use crate::token::*;
 use std::{ops::Range, str};
 
@@ -277,7 +276,23 @@ impl<'src> Lexer<'src> {
     }
 
     fn skip(&mut self) {
-        todo!()
+        loop {
+            match self.peek() {
+                Some(b' ') | Some(b'\r') | Some(b'\t') => {
+                    self.consume();
+                }
+                Some(b'#') => {
+                    self.consume();
+                    while let Some(comment) = self.peek() {
+                        if comment == b'\n' {
+                            break;
+                        }
+                        self.consume();
+                    }
+                }
+                _ => break,
+            }
+        }
     }
 
     fn peek(&self) -> Option<u8> {
