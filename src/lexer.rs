@@ -1,11 +1,13 @@
 use crate::token::*;
 use std::{ops::Range, str};
 
+#[derive(Debug)]
 pub struct LexerError {
     pub kind: LexerErrorKind,
     pub span: Range<usize>,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum LexerErrorKind {
     InvalidAscii,
     InvalidCharacter,
@@ -14,7 +16,6 @@ pub enum LexerErrorKind {
     UnexpectedEOF,
 }
 
-#[allow(unused)]
 pub struct Lexer<'src> {
     source: &'src [u8],
     position: usize,
@@ -33,7 +34,20 @@ impl<'src> Lexer<'src> {
         Ok(Self { source, position: 0 })
     }
 
-    pub fn next(&mut self) -> Result<Token<'_>, LexerError> {
+    pub fn scan(&mut self) -> Vec<Result<Token, LexerError>> {
+        let mut tokens = Vec::new();
+        loop {
+            let token = self.next();
+            if token.as_ref().is_ok_and(|t| matches!(t.kind, TokenKind::EOF)) {
+                tokens.push(token);
+                break;
+            }
+            tokens.push(token);
+        }
+        return tokens;
+    }
+
+    fn next(&mut self) -> Result<Token, LexerError> {
         self.skip();
         let span_start = self.position;
         let current = match self.peek() {
@@ -69,7 +83,7 @@ impl<'src> Lexer<'src> {
         }
     }
 
-    fn word(&mut self, span_start: usize) -> Result<Token<'_>, LexerError> {
+    fn word(&mut self, span_start: usize) -> Result<Token, LexerError> {
         self.consume();
 
         while let Some(byte) = self.peek() {
@@ -103,7 +117,7 @@ impl<'src> Lexer<'src> {
             "is" => TokenKind::Operator(Operator::Is),
             "not" => TokenKind::Operator(Operator::Not),
 
-            _ => TokenKind::Identifier(word),
+            _ => TokenKind::Identifier(String::from(word)),
         };
 
         Ok(Token {
@@ -112,7 +126,7 @@ impl<'src> Lexer<'src> {
         })
     }
 
-    fn operator(&mut self, span_start: usize) -> Result<Token<'_>, LexerError> {
+    fn operator(&mut self, span_start: usize) -> Result<Token, LexerError> {
         let op = self.consume().ok_or_else(|| LexerError {
             kind: LexerErrorKind::UnexpectedEOF,
             span: span_start..self.position,
@@ -155,7 +169,7 @@ impl<'src> Lexer<'src> {
         })
     }
 
-    fn delimiter(&mut self, span_start: usize) -> Result<Token<'_>, LexerError> {
+    fn delimiter(&mut self, span_start: usize) -> Result<Token, LexerError> {
         let delim = self.consume().ok_or_else(|| LexerError {
             kind: LexerErrorKind::UnexpectedEOF,
             span: span_start..self.position,
@@ -179,7 +193,7 @@ impl<'src> Lexer<'src> {
         })
     }
 
-    fn digit(&mut self, span_start: usize) -> Result<Token<'_>, LexerError> {
+    fn digit(&mut self, span_start: usize) -> Result<Token, LexerError> {
         self.consume();
 
         while let Some(byte) = self.peek() {
@@ -228,7 +242,7 @@ impl<'src> Lexer<'src> {
         })
     }
 
-    fn string(&mut self, span_start: usize) -> Result<Token<'_>, LexerError> {
+    fn string(&mut self, span_start: usize) -> Result<Token, LexerError> {
         self.consume();
 
         loop {
@@ -241,7 +255,7 @@ impl<'src> Lexer<'src> {
                         span: span_start..self.position,
                     })?;
                     return Ok(Token {
-                        kind: TokenKind::String(string),
+                        kind: TokenKind::String(String::from(string)),
                         span: span_start..self.position,
                     });
                 }
@@ -267,7 +281,7 @@ impl<'src> Lexer<'src> {
         }
     }
 
-    fn newline(&mut self, span_start: usize) -> Result<Token<'_>, LexerError> {
+    fn newline(&mut self, span_start: usize) -> Result<Token, LexerError> {
         self.consume();
         Ok(Token {
             kind: TokenKind::Newline,

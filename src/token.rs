@@ -1,20 +1,20 @@
 use std::ops::Range;
 
 #[derive(Debug, Clone)]
-pub struct Token<'src> {
-    pub kind: TokenKind<'src>,
+pub struct Token {
+    pub kind: TokenKind,
     pub span: Range<usize>,
 }
 
 #[derive(Debug, Clone)]
-pub enum TokenKind<'src> {
-    Identifier(&'src str),
+pub enum TokenKind {
+    Identifier(String),
     Keyword(Keyword),
     Delimiter(Delimiter),
     Type(Primitive),
     Operator(Operator),
     Number(f64),
-    String(&'src str),
+    String(String),
     Ellipsis,
     Newline,
     EOF,
