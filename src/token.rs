@@ -1,28 +1,25 @@
 use std::ops::Range;
 
-#[allow(unused)]
 #[derive(Debug, Clone)]
-pub struct Token {
-    pub kind: TokenKind,
+pub struct Token<'src> {
+    pub kind: TokenKind<'src>,
     pub span: Range<usize>,
 }
 
-#[allow(unused)]
 #[derive(Debug, Clone)]
-pub enum TokenKind {
-    Identifier,
+pub enum TokenKind<'src> {
+    Identifier(&'src str),
     Keyword(Keyword),
     Delimiter(Delimiter),
     Type(Primitive),
     Operator(Operator),
     Number(f64),
-    String,
+    String(&'src str),
     Ellipsis,
     Newline,
     EOF,
 }
 
-#[allow(unused)]
 #[derive(Debug, Clone)]
 pub enum Primitive {
     Num,
@@ -30,7 +27,6 @@ pub enum Primitive {
     Bool,
 }
 
-#[allow(unused)]
 #[derive(Debug, Clone)]
 pub enum Keyword {
     Let,
@@ -39,7 +35,6 @@ pub enum Keyword {
     In,
 }
 
-#[allow(unused)]
 #[derive(Debug, Clone)]
 pub enum Delimiter {
     Colon,  // :
@@ -52,11 +47,10 @@ pub enum Delimiter {
     RBrace, // }
 }
 
-#[allow(unused)]
 #[derive(Debug, Clone)]
 pub enum Operator {
-    IsNot,            // is not
     Is,               // is
+    Not,              // not
     EqualLessThan,    // <=
     EqualGreaterThan, // >=
     LessThan,         // <

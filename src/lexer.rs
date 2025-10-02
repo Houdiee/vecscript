@@ -1,6 +1,6 @@
+// TODO: ADD COMMENT AND SKIP WHITESPACE
+use crate::token::*;
 use std::{ops::Range, str};
-
-use crate::token::{Token, TokenKind};
 
 pub struct LexerError {
     pub kind: LexerErrorKind,
@@ -11,6 +11,7 @@ pub enum LexerErrorKind {
     InvalidAscii,
     InvalidCharacter,
     InvalidNumber,
+    UnterminatedString,
     UnexpectedEOF,
 }
 
@@ -20,7 +21,6 @@ pub struct Lexer<'src> {
     position: usize,
 }
 
-#[allow(unused)]
 impl<'src> Lexer<'src> {
     pub fn init(source: &'src str) -> Result<Self, LexerError> {
         let source = source.as_bytes();
@@ -34,7 +34,8 @@ impl<'src> Lexer<'src> {
         Ok(Self { source, position: 0 })
     }
 
-    pub fn next(&mut self) -> Result<Token, LexerError> {
+    pub fn next(&mut self) -> Result<Token<'_>, LexerError> {
+        self.skip();
         let span_start = self.position;
         let current = match self.peek() {
             None => {
@@ -47,11 +48,15 @@ impl<'src> Lexer<'src> {
         };
 
         match current {
-            b'a'..=b'z' | b'A'..=b'Z' | b'_' => todo!(),
+            b'a'..=b'z' | b'A'..=b'Z' | b'_' => self.word(span_start),
 
-            b'0'..=b'9' => todo!(),
+            b'=' | b'+' | b'-' | b'*' | b'/' | b'^' | b'%' | b'<' | b'>' => self.operator(span_start),
 
-            b':' | b',' | b'(' | b')' | b'[' | b']' | b'{' | b'{' => todo!(),
+            b':' | b',' | b'(' | b')' | b'[' | b']' | b'{' | b'}' => self.delimiter(span_start),
+
+            b'0'..=b'9' => self.digit(span_start),
+
+            b'"' => self.string(span_start),
 
             b'\n' => self.newline(span_start),
 
@@ -65,12 +70,118 @@ impl<'src> Lexer<'src> {
         }
     }
 
-    fn digit(&mut self, span_start: usize) -> Result<Token, LexerError> {
-        // before the decimal point
-        let first_digit = self.consume().ok_or_else(|| LexerError {
+    fn word(&mut self, span_start: usize) -> Result<Token<'_>, LexerError> {
+        self.consume();
+
+        while let Some(byte) = self.peek() {
+            if byte.is_ascii_alphanumeric() || byte == b'_' {
+                self.consume();
+            } else {
+                break;
+            }
+        }
+
+        let word_span = span_start..self.position;
+        let word_slice = &self.source[word_span.clone()];
+        let word = str::from_utf8(word_slice).map_err(|_| LexerError {
+            kind: LexerErrorKind::InvalidAscii,
+            span: word_span,
+        })?;
+
+        let kind = match word {
+            // Keywords
+            "let" => TokenKind::Keyword(Keyword::Let),
+            "where" => TokenKind::Keyword(Keyword::Where),
+            "in" => TokenKind::Keyword(Keyword::In),
+            "solve" => TokenKind::Keyword(Keyword::Solve),
+
+            // Primitives
+            "Num" => TokenKind::Type(Primitive::Num),
+            "Str" => TokenKind::Type(Primitive::Str),
+            "Bool" => TokenKind::Type(Primitive::Bool),
+
+            // Operators
+            "is" => TokenKind::Operator(Operator::Is),
+            "not" => TokenKind::Operator(Operator::Not),
+
+            _ => TokenKind::Identifier(word),
+        };
+
+        Ok(Token {
+            kind,
+            span: span_start..self.position,
+        })
+    }
+
+    fn operator(&mut self, span_start: usize) -> Result<Token<'_>, LexerError> {
+        let op = self.consume().ok_or_else(|| LexerError {
             kind: LexerErrorKind::UnexpectedEOF,
             span: span_start..self.position,
         })?;
+
+        let op_kind = match op {
+            b'=' => Operator::Equals,
+            b'+' => Operator::Plus,
+            b'-' => Operator::Minus,
+            b'*' => Operator::Multiply,
+            b'/' => Operator::Divide,
+            b'^' => Operator::Power,
+            b'%' => Operator::Modulo,
+            b'<' => {
+                if let Some(byte) = self.peek()
+                    && byte == b'='
+                {
+                    self.consume();
+                    Operator::EqualLessThan
+                } else {
+                    Operator::LessThan
+                }
+            }
+            b'>' => {
+                if let Some(byte) = self.peek()
+                    && byte == b'='
+                {
+                    self.consume();
+                    Operator::EqualGreaterThan
+                } else {
+                    Operator::GreaterThan
+                }
+            }
+            _ => unreachable!("Invalid operator"),
+        };
+
+        Ok(Token {
+            kind: TokenKind::Operator(op_kind),
+            span: span_start..self.position,
+        })
+    }
+
+    fn delimiter(&mut self, span_start: usize) -> Result<Token<'_>, LexerError> {
+        let delim = self.consume().ok_or_else(|| LexerError {
+            kind: LexerErrorKind::UnexpectedEOF,
+            span: span_start..self.position,
+        })?;
+
+        let delim_kind = match delim {
+            b':' => Delimiter::Colon,
+            b',' => Delimiter::Comma,
+            b'(' => Delimiter::LParen,
+            b')' => Delimiter::RParen,
+            b'[' => Delimiter::LBrack,
+            b']' => Delimiter::RBrack,
+            b'{' => Delimiter::LBrace,
+            b'}' => Delimiter::RBrace,
+            _ => unreachable!("Invalid delimiter"),
+        };
+
+        Ok(Token {
+            kind: TokenKind::Delimiter(delim_kind),
+            span: span_start..self.position,
+        })
+    }
+
+    fn digit(&mut self, span_start: usize) -> Result<Token<'_>, LexerError> {
+        self.consume();
 
         while let Some(byte) = self.peek() {
             if byte.is_ascii_digit() {
@@ -118,12 +229,55 @@ impl<'src> Lexer<'src> {
         })
     }
 
-    fn newline(&mut self, span_start: usize) -> Result<Token, LexerError> {
+    fn string(&mut self, span_start: usize) -> Result<Token<'_>, LexerError> {
+        self.consume();
+
+        loop {
+            match self.peek() {
+                Some(b'"') => {
+                    self.consume();
+                    let slice = &self.source[span_start + 1..self.position - 1];
+                    let string = str::from_utf8(slice).map_err(|_| LexerError {
+                        kind: LexerErrorKind::InvalidAscii,
+                        span: span_start..self.position,
+                    })?;
+                    return Ok(Token {
+                        kind: TokenKind::String(string),
+                        span: span_start..self.position,
+                    });
+                }
+
+                Some(b'\n') => {
+                    return Err(LexerError {
+                        kind: LexerErrorKind::UnterminatedString,
+                        span: span_start..self.position,
+                    });
+                }
+
+                Some(_) => {
+                    self.consume();
+                }
+
+                None => {
+                    return Err(LexerError {
+                        kind: LexerErrorKind::UnterminatedString,
+                        span: span_start..self.position,
+                    });
+                }
+            }
+        }
+    }
+
+    fn newline(&mut self, span_start: usize) -> Result<Token<'_>, LexerError> {
         self.consume();
         Ok(Token {
             kind: TokenKind::Newline,
             span: span_start..self.position,
         })
+    }
+
+    fn skip(&mut self) {
+        todo!()
     }
 
     fn peek(&self) -> Option<u8> {
