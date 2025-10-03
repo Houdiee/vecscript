@@ -196,6 +196,7 @@ impl<'src> Lexer<'src> {
     fn digit(&mut self, span_start: usize) -> Result<Token, LexerError> {
         self.consume();
 
+        // before the decimal
         while let Some(byte) = self.peek() {
             if byte.is_ascii_digit() {
                 self.consume();

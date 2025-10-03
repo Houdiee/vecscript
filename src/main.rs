@@ -1,6 +1,7 @@
 use crate::lexer::Lexer;
 
 pub mod lexer;
+pub mod parser;
 pub mod token;
 
 fn main() {

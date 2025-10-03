@@ -3,6 +3,6 @@
 let x : Num = 1 # declare a variable
 let y = 2 # inferred type
 let str : Str = "hello world"
+let invalid_num = 1.2.3
 
-let invalid = @
 let unterminated = "this should produce an error
