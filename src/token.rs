@@ -15,7 +15,6 @@ pub enum TokenKind {
     Operator(Operator),
     Number(f64),
     String(String),
-    Ellipsis,
     Newline,
     EOF,
 }
