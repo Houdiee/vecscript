@@ -31,3 +31,33 @@ Atom ::= NUMBER
 
 TERMINATE ::= NEWLINE ;
 */
+
+use crate::token::Token;
+
+#[derive(Debug)]
+pub struct Parser {
+    tokens: Vec<Token>,
+    position: usize,
+}
+
+#[allow(unused)]
+impl Parser {
+    pub fn new(tokens: Vec<Token>) -> Self {
+        Self { tokens, position: 0 }
+    }
+
+    fn peek(&self) -> Option<&Token> {
+        if self.position >= self.tokens.len() {
+            return None;
+        }
+        return Some(&self.tokens[self.position]);
+    }
+
+    fn consume(&mut self) -> Option<&Token> {
+        if self.position >= self.tokens.len() {
+            return None;
+        }
+        self.position += 1;
+        return Some(&self.tokens[self.position - 1]);
+    }
+}
