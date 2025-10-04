@@ -32,7 +32,9 @@ Atom ::= NUMBER
 TERMINATE ::= NEWLINE ;
 */
 
-use crate::token::Token;
+use crate::{ast::*, token::*};
+
+pub enum ParserError {}
 
 #[derive(Debug)]
 pub struct Parser {
@@ -44,6 +46,14 @@ pub struct Parser {
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Self { tokens, position: 0 }
+    }
+
+    pub fn parse(&mut self) -> Result<Program, ParserError> {
+        todo!()
+    }
+
+    fn parse_statement(&mut self) {
+        todo!()
     }
 
     fn peek(&self) -> Option<&Token> {

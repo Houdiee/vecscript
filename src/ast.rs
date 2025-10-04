@@ -1,5 +1,9 @@
 use crate::token::*;
 
+pub struct Program {
+    pub statements: Vec<Statement>,
+}
+
 pub struct Binding {
     pub var: String,
     pub var_type: Option<Primitive>,
