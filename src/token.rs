@@ -32,6 +32,7 @@ pub enum Keyword {
     Let,
     Where,
     Solve,
+    For,
     In,
 }
 

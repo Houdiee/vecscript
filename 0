@@ -41,13 +41,6 @@ pub enum ParserError {
 
 pub enum Expected {
     ClosingDelimiter(Delimiter),
-    Identifier,
-    LetStatement,
-    For,
-    In,
-    SolveStatement,
-    TypeAnnotation,
-    Newline,
     Atom,
 }
 
@@ -74,47 +67,13 @@ impl Parser {
         };
 
         match &current.kind {
-            TokenKind::Keyword(Keyword::Let) => self.let_statement(),
-            TokenKind::Keyword(Keyword::Solve) => self.solve_for_in_declaration(),
-
-            // Atoms
-            TokenKind::Number(_)
-            | TokenKind::Bool(_)
-            | TokenKind::String(_)
-            | TokenKind::Identifier(_)
-            | TokenKind::Delimiter(Delimiter::LParen) => self.expression_statement(),
-
+            TokenKind::Keyword(Keyword::Let) => self.let_declaration(),
             _ => todo!(),
         }
     }
 
-    fn solve_for_in_declaration(&mut self) -> Result<Statement, ParserError> {
-        self.expect(TokenKind::Keyword(Keyword::Solve), Expected::SolveStatement)?;
-        self.expect(TokenKind::Keyword(Keyword::For), Expected::For)?;
-        self.expect(TokenKind::Identifier(_), Expected::Identifier)?;
-        let mut identifier_type = None;
-
-        let current = self.peek().ok_or_else(|| ParserError::UnexpectedEndOfInput)?;
-        if matches!(&current.kind, TokenKind::Delimiter(Delimiter::Colon)) {
-            self.consume();
-            identifier_type = self.expect(TokenKind::Type(_), Expected::TypeAnnotation)?;
-        }
-
-        self.expect(TokenKind::Keyword(Keyword::In), Expected::In)?;
+    fn let_declaration(&mut self) -> Result<Statement, ParserError> {
         todo!()
-    }
-
-    fn let_statement(&mut self) -> Result<Statement, ParserError> {
-        let let_token = self.expect(TokenKind::Keyword(Keyword::Let), Expected::LetStatement)?;
-        let identifier = self.expect(TokenKind::Identifier(_), Expected::Identifier)?;
-
-        todo!()
-    }
-
-    fn expression_statement(&mut self) -> Result<Statement, ParserError> {
-        let expression = self.expression()?;
-        self.expect(TokenKind::Newline, Expected::Newline)?;
-        return Ok(Statement::Expression(expression));
     }
 
     // Expression ::= ComparisonExpression ;
@@ -128,12 +87,12 @@ impl Parser {
 
         while let Some(current) = self.peek() {
             if let TokenKind::Operator(op) = &current.kind {
-                let op = op.clone();
                 self.consume();
+
                 let right = self.arithmetic_expression()?;
                 left = Expression::BinaryOp {
                     left: Box::new(left),
-                    op,
+                    op: &op,
                     right: Box::new(right),
                 };
             } else {
@@ -145,81 +104,33 @@ impl Parser {
 
     // ArithmeticExpression ::= MultiplicativeExpression {( PLUS | MINUS ) MultiplicativeExpression } ;
     fn arithmetic_expression(&mut self) -> Result<Expression, ParserError> {
-        let mut left = self.multiplicative_expression()?;
-
-        while let Some(current) = self.peek() {
-            match &current.kind {
-                TokenKind::Operator(op) if matches!(op, Operator::Plus) || matches!(op, Operator::Minus) => {
-                    let op = op.clone();
-                    self.consume();
-                    let right = self.multiplicative_expression()?;
-                    left = Expression::BinaryOp {
-                        left: Box::new(left),
-                        op,
-                        right: Box::new(right),
-                    };
-                }
-                _ => break,
-            }
-        }
-        Ok(left)
+        let left = self.multiplicative_expression()?;
+        todo!()
     }
 
     // MultiplicativeExpression ::= UnaryExpression {( MULTIPLY | DIVIDE ) UnaryExpression } ;
     fn multiplicative_expression(&mut self) -> Result<Expression, ParserError> {
-        let mut left = self.unary_expression()?;
-
-        while let Some(current) = self.peek() {
-            match &current.kind {
-                TokenKind::Operator(op) if matches!(op, Operator::Multiply) || matches!(op, Operator::Divide) => {
-                    let op = op.clone();
-                    self.consume();
-                    let right = self.multiplicative_expression()?;
-                    left = Expression::BinaryOp {
-                        left: Box::new(left),
-                        op,
-                        right: Box::new(right),
-                    };
-                }
-                _ => break,
-            }
-        }
-        Ok(left)
+        let left = self.unary_expression()?;
+        todo!()
     }
 
     // UnaryExpression ::= [ MINUS ] PowerExpression ;
     fn unary_expression(&mut self) -> Result<Expression, ParserError> {
         let current = self.peek().ok_or_else(|| ParserError::UnexpectedEndOfInput)?;
         if matches!(current.kind, TokenKind::Operator(Operator::Minus)) {
-            self.consume();
-            let right = self.power_expression()?;
             return Ok(Expression::UnaryOp {
                 op: Operator::Minus,
-                expr: Box::new(right),
+                expr: Box::new(self.power_expression()?),
             });
         }
-        return self.power_expression();
+
+        todo!()
     }
 
     // PowerExpression ::= Atom [ POWER PowerExpression ];
     fn power_expression(&mut self) -> Result<Expression, ParserError> {
-        let mut left = self.atom()?;
-
-        while let Some(current) = self.peek() {
-            match &current.kind {
-                TokenKind::Operator(Operator::Power) => {
-                    self.consume();
-                    let right = self.power_expression()?;
-                    left = Expression::BinaryOp {
-                        left: Box::new(left),
-                        op: Operator::Power,
-                        right: Box::new(right),
-                    };
-                }
-                _ => break,
-            }
-        }
-        Ok(left)
+        let left = self.atom()?;
+        todo!()
     }
 
     /* Atom ::= NUMBER
