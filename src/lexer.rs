@@ -37,12 +37,12 @@ impl<'src> Lexer<'src> {
     pub fn scan(&mut self) -> Vec<Result<Token, LexerError>> {
         let mut tokens = Vec::new();
         loop {
-            let token = self.next();
-            if token.as_ref().is_ok_and(|t| matches!(t.kind, TokenKind::EOF)) {
-                tokens.push(token);
+            let token_result = self.next();
+            if token_result.as_ref().is_ok_and(|t| matches!(t.kind, TokenKind::EOF)) {
+                tokens.push(token_result);
                 break;
             }
-            tokens.push(token);
+            tokens.push(token_result);
         }
         return tokens;
     }
@@ -108,6 +108,10 @@ impl<'src> Lexer<'src> {
             "in" => TokenKind::Keyword(Keyword::In),
             "solve" => TokenKind::Keyword(Keyword::Solve),
 
+            // Booleans
+            "true" => TokenKind::Bool(true),
+            "false" => TokenKind::Bool(false),
+
             // Primitives
             "Num" => TokenKind::Type(Primitive::Num),
             "Str" => TokenKind::Type(Primitive::Str),
@@ -117,7 +121,7 @@ impl<'src> Lexer<'src> {
             "is" => TokenKind::Operator(Operator::Is),
             "not" => TokenKind::Operator(Operator::Not),
 
-            _ => TokenKind::Identifier(String::from(word)),
+            _ => TokenKind::Identifier(word.to_string()),
         };
 
         Ok(Token {
@@ -256,7 +260,7 @@ impl<'src> Lexer<'src> {
                         span: span_start..self.position,
                     })?;
                     return Ok(Token {
-                        kind: TokenKind::String(String::from(string)),
+                        kind: TokenKind::String(string.to_string()),
                         span: span_start..self.position,
                     });
                 }

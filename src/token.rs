@@ -14,6 +14,7 @@ pub enum TokenKind {
     Type(Primitive),
     Operator(Operator),
     Number(f64),
+    Bool(bool),
     String(String),
     Newline,
     EOF,
