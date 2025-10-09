@@ -91,22 +91,23 @@ impl Parser {
     fn solve_for_in_declaration(&mut self) -> Result<Statement, ParserError> {
         self.expect(TokenKind::Keyword(Keyword::Solve), Expected::SolveStatement)?;
         self.expect(TokenKind::Keyword(Keyword::For), Expected::For)?;
-        self.expect(TokenKind::Identifier(_), Expected::Identifier)?;
+        self.expect_kind(|kind| matches!(kind, TokenKind::Identifier(_)), Expected::Identifier)?;
         let mut identifier_type = None;
 
         let current = self.peek().ok_or_else(|| ParserError::UnexpectedEndOfInput)?;
         if matches!(&current.kind, TokenKind::Delimiter(Delimiter::Colon)) {
             self.consume();
-            identifier_type = self.expect(TokenKind::Type(_), Expected::TypeAnnotation)?;
+            identifier_type = Some(self.expect_kind(|kind| matches!(kind, TokenKind::Type(_)), Expected::TypeAnnotation)?);
         }
 
         self.expect(TokenKind::Keyword(Keyword::In), Expected::In)?;
+
         todo!()
     }
 
     fn let_statement(&mut self) -> Result<Statement, ParserError> {
         let let_token = self.expect(TokenKind::Keyword(Keyword::Let), Expected::LetStatement)?;
-        let identifier = self.expect(TokenKind::Identifier(_), Expected::Identifier)?;
+        let identifier = self.expect_kind(|kind| matches!(kind, TokenKind::Identifier(_)), Expected::Identifier)?;
 
         todo!()
     }
@@ -254,8 +255,12 @@ impl Parser {
     }
 
     fn expect(&mut self, kind: TokenKind, error: Expected) -> Result<&Token, ParserError> {
+        return self.expect_kind(|token_kind| matches!(token_kind, kind), error);
+    }
+
+    fn expect_kind(&mut self, predicate: fn(&TokenKind) -> bool, error: Expected) -> Result<&Token, ParserError> {
         let token = self.consume().ok_or_else(|| ParserError::UnexpectedEndOfInput)?;
-        if matches!(&token.kind, kind) {
+        if predicate(&token.kind) {
             Ok(token)
         } else {
             Err(ParserError::UnexpectedToken {
