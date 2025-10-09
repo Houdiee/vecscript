@@ -2,11 +2,11 @@
 Program ::= { Statement } ;
 
 Statement ::= SolveForInDeclaration TERMINATE
-            | LetInDeclaration TERMINATE
-            | LetDeclaration TERMINATE
+            | LetStatement TERMINATE
             | SetDeclaration TERMINATE
             | Expression TERMINATE ;
 
+LetStatement ::= LetInDeclaration | LetDeclaration ;
 SolveForInDeclaration ::= SOLVE FOR IDENTIFIER [ TypeAnnotation ] IN Expression EQUALS Expression ;
 LetInDeclaration      ::= LET Binding IN Expression ;
 LetDeclaration        ::= LET Binding [ WhereClause ] ;
@@ -45,6 +45,8 @@ pub enum Expected {
     LetStatement,
     For,
     In,
+    WhereClause,
+    Assignment,
     SolveStatement,
     TypeAnnotation,
     Newline,
@@ -67,6 +69,13 @@ impl Parser {
         todo!()
     }
 
+    /*
+    Statement ::= SolveForInDeclaration TERMINATE
+                | LetInDeclaration TERMINATE
+                | LetDeclaration TERMINATE
+                | SetDeclaration TERMINATE
+                | Expression TERMINATE ;
+    */
     fn statement(&mut self) -> Result<Statement, ParserError> {
         let current = match self.peek() {
             None => return Err(ParserError::UnexpectedEndOfInput),
@@ -74,8 +83,8 @@ impl Parser {
         };
 
         match &current.kind {
-            TokenKind::Keyword(Keyword::Let) => self.let_statement(),
             TokenKind::Keyword(Keyword::Solve) => self.solve_for_in_declaration(),
+            TokenKind::Keyword(Keyword::Let) => self.let_statement(),
 
             // Atoms
             TokenKind::Number(_)
@@ -88,12 +97,13 @@ impl Parser {
         }
     }
 
+    // SolveForInDeclaration ::= SOLVE FOR IDENTIFIER [ TypeAnnotation ] IN Expression EQUALS Expression ;
     fn solve_for_in_declaration(&mut self) -> Result<Statement, ParserError> {
         self.expect(TokenKind::Keyword(Keyword::Solve), Expected::SolveStatement)?;
         self.expect(TokenKind::Keyword(Keyword::For), Expected::For)?;
         self.expect_kind(|kind| matches!(kind, TokenKind::Identifier(_)), Expected::Identifier)?;
-        let mut identifier_type = None;
 
+        let mut identifier_type = None;
         let current = self.peek().ok_or_else(|| ParserError::UnexpectedEndOfInput)?;
         if matches!(&current.kind, TokenKind::Delimiter(Delimiter::Colon)) {
             self.consume();
@@ -105,11 +115,67 @@ impl Parser {
         todo!()
     }
 
+    // LetStatement ::= LetInDeclaration | LetDeclaration ;
     fn let_statement(&mut self) -> Result<Statement, ParserError> {
-        let let_token = self.expect(TokenKind::Keyword(Keyword::Let), Expected::LetStatement)?;
-        let identifier = self.expect_kind(|kind| matches!(kind, TokenKind::Identifier(_)), Expected::Identifier)?;
+        self.expect(TokenKind::Keyword(Keyword::Let), Expected::LetStatement)?;
+        self.expect_kind(|kind| matches!(kind, TokenKind::Identifier(_)), Expected::Identifier)?;
+        let binding = self.binding()?;
+        self.expression()?;
 
         todo!()
+    }
+
+    // WhereClause ::= WHERE Binding { COMMA Binding } ;
+    fn where_clause(&mut self) -> Result<Option<WhereClause>, ParserError> {
+        if !matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::Where))) {
+            return Ok(None);
+        }
+
+        self.expect(TokenKind::Keyword(Keyword::Where), Expected::WhereClause)?;
+        let mut bindings = Vec::new();
+        bindings.push(self.binding()?);
+
+        while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Comma))) {
+            self.consume();
+            bindings.push(self.binding()?);
+        }
+        Ok(Some(WhereClause { bindings }))
+    }
+
+    // Binding ::= IDENTIFIER [ TypeAnnotation ] EQUALS Expression ;
+    fn binding(&mut self) -> Result<Binding, ParserError> {
+        let var_token = self.expect_kind(|kind| matches!(kind, TokenKind::Identifier(_)), Expected::Identifier)?;
+        let var = match &var_token.kind {
+            TokenKind::Identifier(s) => s.clone(),
+            _ => unreachable!(),
+        };
+        let var_type = self.type_annotation()?;
+        self.expect(TokenKind::Operator(Operator::Equals), Expected::Assignment)?;
+        let var_expression = self.expression()?;
+
+        Ok(Binding {
+            var,
+            var_type,
+            var_expression,
+        })
+    }
+
+    // TypeAnnotation ::= COLON TYPE ;
+    fn type_annotation(&mut self) -> Result<Option<Primitive>, ParserError> {
+        if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Colon))) {
+            self.consume();
+            let type_token = self.consume().ok_or_else(|| ParserError::UnexpectedEndOfInput)?;
+            match &type_token.kind {
+                TokenKind::Type(primitive) => return Ok(Some(primitive.clone())),
+                _ => {
+                    return Err(ParserError::UnexpectedToken {
+                        expected: Expected::TypeAnnotation,
+                        got: type_token.clone(),
+                    });
+                }
+            }
+        }
+        Ok(None)
     }
 
     fn expression_statement(&mut self) -> Result<Statement, ParserError> {
