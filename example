@@ -5,8 +5,10 @@ let y = 2 # inferred type
 let str : Str = "hello world"
 let invalid_num = 1.23
 
+let solve_g = solve g in 3 + g = 4 + 5
+
 let u = 6 * x where
-    x = 2,
+    x = 2 + 4,
     y = 3,
     z = 4
 

@@ -7,7 +7,6 @@ Statement ::= SolveForInDeclaration TERMINATE
             | Expression TERMINATE ;
 
 LetStatement ::= LetInDeclaration | LetDeclaration ;
-SolveForInDeclaration ::= SOLVE FOR IDENTIFIER [ TypeAnnotation ] IN [ TERMINATE ] Expression EQUALS Expression ;
 LetInDeclaration      ::= LET Binding IN [ TERMINATE ] Expression ;
 LetDeclaration        ::= LET Binding [ WhereClause ] ;
 WhereClause ::= WHERE [ TERMINATE ] Binding { COMMA [ TERMINATE ] Binding } ;
@@ -46,7 +45,6 @@ pub enum Expected {
     ClosingDelimiter(Delimiter),
     Identifier,
     LetStatement,
-    For,
     InClause,
     WhereClause,
     Assignment,
@@ -100,7 +98,6 @@ impl Parser {
         };
 
         let statement = match &current.kind {
-            TokenKind::Keyword(Keyword::Solve) => self.solve_for_in_declaration(),
             TokenKind::Keyword(Keyword::Let) => self.let_statement(),
 
             // Atoms
@@ -117,29 +114,6 @@ impl Parser {
         }?;
         self.terminate()?;
         Ok(statement)
-    }
-
-    // SolveForInDeclaration ::= SOLVE FOR IDENTIFIER [ TypeAnnotation ] IN Expression EQUALS Expression ;
-    fn solve_for_in_declaration(&mut self) -> Result<Statement, ParserError> {
-        self.expect(TokenKind::Keyword(Keyword::Solve), Expected::SolveStatement)?;
-        self.expect(TokenKind::Keyword(Keyword::For), Expected::For)?;
-        let var_token = self.expect_kind(|kind| matches!(kind, TokenKind::Identifier(_)), Expected::Identifier)?;
-        let var = match &var_token.kind {
-            TokenKind::Identifier(s) => s.clone(),
-            _ => unreachable!(),
-        };
-        let var_type = self.type_annotation()?;
-        self.expect(TokenKind::Keyword(Keyword::In), Expected::InClause)?;
-        let left = self.expression()?;
-        self.expect(TokenKind::Operator(Operator::Equals), Expected::Assignment)?;
-        let right = self.expression()?;
-
-        Ok(Statement::SolveForInDeclaration {
-            var,
-            var_type,
-            left,
-            right,
-        })
     }
 
     // LetStatement ::= LetInDeclaration | LetDeclaration ;

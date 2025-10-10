@@ -38,13 +38,6 @@ pub enum Expression {
 
 #[derive(Debug)]
 pub enum Statement {
-    SolveForInDeclaration {
-        var: String,
-        var_type: Option<Primitive>,
-        left: Expression,
-        right: Expression,
-    },
-
     LetInDeclaration {
         binding: Binding,
         bound_to: Box<Expression>,
