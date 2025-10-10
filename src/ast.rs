@@ -8,7 +8,7 @@ pub struct Program {
 #[derive(Debug)]
 pub struct Binding {
     pub var: String,
-    pub var_type: Option<Primitive>,
+    pub var_type: Option<Type>,
     pub var_expression: Expression,
 }
 
@@ -46,12 +46,6 @@ pub enum Statement {
     LetDeclaration {
         binding: Binding,
         where_clause: Option<WhereClause>,
-    },
-
-    SetDeclaration {
-        var: String,
-        var_type: Option<Primitive>,
-        elements: Vec<Expression>,
     },
 
     Expression(Expression),

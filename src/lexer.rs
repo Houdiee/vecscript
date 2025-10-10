@@ -106,16 +106,16 @@ impl<'src> Lexer<'src> {
             "let" => TokenKind::Keyword(Keyword::Let),
             "where" => TokenKind::Keyword(Keyword::Where),
             "in" => TokenKind::Keyword(Keyword::In),
-            "solve" => TokenKind::Keyword(Keyword::Solve),
+            "Set" => TokenKind::Keyword(Keyword::Set),
 
             // Booleans
             "true" => TokenKind::Bool(true),
             "false" => TokenKind::Bool(false),
 
             // Primitives
-            "Num" => TokenKind::Type(Primitive::Num),
-            "Str" => TokenKind::Type(Primitive::Str),
-            "Bool" => TokenKind::Type(Primitive::Bool),
+            "Num" => TokenKind::Type(Type::BaseType(BaseType::Num)),
+            "Str" => TokenKind::Type(Type::BaseType(BaseType::Str)),
+            "Bool" => TokenKind::Type(Type::BaseType(BaseType::Bool)),
 
             // Operators
             "is" => TokenKind::Operator(Operator::Is),
@@ -180,7 +180,13 @@ impl<'src> Lexer<'src> {
         })?;
 
         let delim_kind = match delim {
-            b':' => Delimiter::Colon,
+            b':' => {
+                if matches!(self.peek(), Some(b':')) {
+                    Delimiter::DoubleColon
+                } else {
+                    Delimiter::Colon
+                }
+            }
             b',' => Delimiter::Comma,
             b'(' => Delimiter::LParen,
             b')' => Delimiter::RParen,

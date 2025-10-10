@@ -11,7 +11,7 @@ pub enum TokenKind {
     Identifier(String),
     Keyword(Keyword),
     Delimiter(Delimiter),
-    Type(Primitive),
+    Type(Type),
     Operator(Operator),
     Number(f64),
     Bool(bool),
@@ -21,7 +21,13 @@ pub enum TokenKind {
 }
 
 #[derive(Debug, Clone)]
-pub enum Primitive {
+pub enum Type {
+    BaseType(BaseType),
+    Set(BaseType),
+}
+
+#[derive(Debug, Clone)]
+pub enum BaseType {
     Num,
     Str,
     Bool,
@@ -32,18 +38,22 @@ pub enum Keyword {
     Let,
     Where,
     In,
+
+    // Type constructors
+    Set,
 }
 
 #[derive(Debug, Clone)]
 pub enum Delimiter {
-    Colon,  // :
-    Comma,  // ,
-    LParen, // (
-    RParen, // )
-    LBrack, // [
-    RBrack, // ]
-    LBrace, // {
-    RBrace, // }
+    DoubleColon, // ::
+    Colon,       // :
+    Comma,       // ,
+    LParen,      // (
+    RParen,      // )
+    LBrack,      // [
+    RBrack,      // ]
+    LBrace,      // {
+    RBrace,      // }
 }
 
 #[derive(Debug, Clone)]

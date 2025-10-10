@@ -1,9 +1,7 @@
 /*
 Program ::= { Statement } ;
 
-Statement ::= SolveForInDeclaration TERMINATE
-            | LetStatement TERMINATE
-            | SetDeclaration TERMINATE
+Statement ::= LetStatement TERMINATE
             | Expression TERMINATE ;
 
 LetStatement ::= LetInDeclaration | LetDeclaration ;
@@ -11,10 +9,9 @@ LetInDeclaration      ::= LET Binding IN [ TERMINATE ] Expression ;
 LetDeclaration        ::= LET Binding [ WhereClause ] ;
 WhereClause ::= WHERE [ TERMINATE ] Binding { COMMA [ TERMINATE ] Binding } ;
 
-SetDeclaration ::= LET IDENTIFIER [ TypeAnnotation ] EQUALS LBRACE [ Expression { COMMA Expression } ] RBRACE ;
-
 Binding ::= IDENTIFIER [ TypeAnnotation ] EQUALS Expression ;
 TypeAnnotation ::= COLON TYPE ;
+Type ::= BASETYPE | SET DOUBLECOLON BASETYPE ;
 
 Expression ::= ComparisonExpression ;
 ComparisonExpression ::= ArithmeticExpression { OPERATOR ArithmeticExpression } ;
@@ -50,6 +47,8 @@ pub enum Expected {
     Assignment,
     SolveStatement,
     TypeAnnotation,
+    TypeConstructor,
+    BaseType,
     Newline,
     Atom,
     ValidToken,
@@ -84,13 +83,6 @@ impl Parser {
         Ok(Program { statements })
     }
 
-    /*
-    Statement ::= SolveForInDeclaration TERMINATE
-                | LetInDeclaration TERMINATE
-                | LetDeclaration TERMINATE
-                | SetDeclaration TERMINATE
-                | Expression TERMINATE ;
-    */
     fn statement(&mut self) -> Result<Statement, ParserError> {
         let current = match self.peek() {
             None => return Err(ParserError::UnexpectedEndOfInput),
@@ -176,21 +168,35 @@ impl Parser {
     }
 
     // TypeAnnotation ::= COLON TYPE ;
-    fn type_annotation(&mut self) -> Result<Option<Primitive>, ParserError> {
+    fn type_annotation(&mut self) -> Result<Option<Type>, ParserError> {
         if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Colon))) {
             self.consume();
-            let type_token = self.consume().ok_or_else(|| ParserError::UnexpectedEndOfInput)?;
-            match &type_token.kind {
-                TokenKind::Type(primitive) => return Ok(Some(primitive.clone())),
-                _ => {
-                    return Err(ParserError::UnexpectedToken {
-                        expected: Expected::TypeAnnotation,
-                        got: type_token.clone(),
-                    });
-                }
-            }
+            let parsed_type = self.parse_type()?;
+            return Ok(Some(parsed_type));
         }
         Ok(None)
+    }
+
+    // Type ::= BASETYPE | SET DOUBLECOLON BASETYPE ;
+    fn parse_type(&mut self) -> Result<Type, ParserError> {
+        if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::Set))) {
+            self.consume();
+            self.expect(TokenKind::Delimiter(Delimiter::DoubleColon), Expected::TypeConstructor)?;
+            let base_type = self.base_type()?;
+            return Ok(Type::Set(base_type));
+        }
+
+        let base_type = self.base_type()?;
+        Ok(Type::BaseType(base_type))
+    }
+
+    fn base_type(&mut self) -> Result<BaseType, ParserError> {
+        let token = self.expect_kind(|kind| matches!(kind, TokenKind::Type(Type::BaseType(_))), Expected::BaseType)?;
+        let base_type = match &token.kind {
+            TokenKind::Type(Type::BaseType(base)) => base.clone(),
+            _ => unreachable!(),
+        };
+        Ok(base_type)
     }
 
     fn expression_statement(&mut self) -> Result<Statement, ParserError> {
