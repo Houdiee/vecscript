@@ -1,19 +1,23 @@
 use crate::token::*;
 
+#[derive(Debug)]
 pub struct Program {
     pub statements: Vec<Statement>,
 }
 
+#[derive(Debug)]
 pub struct Binding {
     pub var: String,
     pub var_type: Option<Primitive>,
     pub var_expression: Expression,
 }
 
+#[derive(Debug)]
 pub struct WhereClause {
     pub bindings: Vec<Binding>,
 }
 
+#[derive(Debug)]
 pub enum Expression {
     Expression(Box<Expression>),
     Number(f64),
@@ -32,6 +36,7 @@ pub enum Expression {
     SetLiteral(Vec<Expression>),
 }
 
+#[derive(Debug)]
 pub enum Statement {
     SolveForInDeclaration {
         var: String,

@@ -34,12 +34,13 @@ TERMINATE ::= NEWLINE ;
 
 use crate::{ast::*, token::*};
 
+#[derive(Debug)]
 pub enum ParserError {
-    InvalidToken,
     UnexpectedEndOfInput,
     UnexpectedToken { expected: Expected, got: Token },
 }
 
+#[derive(Debug)]
 pub enum Expected {
     ClosingDelimiter(Delimiter),
     Identifier,
@@ -52,6 +53,7 @@ pub enum Expected {
     TypeAnnotation,
     Newline,
     Atom,
+    ValidToken,
 }
 
 #[derive(Debug)]
@@ -67,7 +69,20 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> Result<Program, ParserError> {
-        todo!()
+        let mut statements = Vec::new();
+        while self.peek().is_some() {
+            let current_kind = self.peek().map(|t| &t.kind);
+            if matches!(current_kind, Some(TokenKind::EOF)) {
+                break;
+            }
+            if matches!(current_kind, Some(TokenKind::Newline)) {
+                self.consume();
+                continue;
+            }
+            statements.push(self.statement()?);
+        }
+
+        Ok(Program { statements })
     }
 
     /*
@@ -83,7 +98,7 @@ impl Parser {
             Some(token) => token,
         };
 
-        let statement_result = match &current.kind {
+        let statement = match &current.kind {
             TokenKind::Keyword(Keyword::Solve) => self.solve_for_in_declaration(),
             TokenKind::Keyword(Keyword::Let) => self.let_statement(),
 
@@ -94,10 +109,13 @@ impl Parser {
             | TokenKind::Identifier(_)
             | TokenKind::Delimiter(Delimiter::LParen) => self.expression_statement(),
 
-            _ => Err(ParserError::InvalidToken),
-        };
-        self.expect(TokenKind::Newline, Expected::Newline)?;
-        return statement_result;
+            _ => Err(ParserError::UnexpectedToken {
+                expected: Expected::ValidToken,
+                got: current.clone(),
+            }),
+        }?;
+        self.terminate()?;
+        Ok(statement)
     }
 
     // SolveForInDeclaration ::= SOLVE FOR IDENTIFIER [ TypeAnnotation ] IN Expression EQUALS Expression ;
@@ -126,9 +144,7 @@ impl Parser {
     // LetStatement ::= LetInDeclaration | LetDeclaration ;
     fn let_statement(&mut self) -> Result<Statement, ParserError> {
         self.expect(TokenKind::Keyword(Keyword::Let), Expected::LetStatement)?;
-        self.expect_kind(|kind| matches!(kind, TokenKind::Identifier(_)), Expected::Identifier)?;
         let binding = self.binding()?;
-        self.expression()?;
 
         // LetInDeclaration ::= LET Binding IN Expression ;
         if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::In))) {
@@ -201,7 +217,6 @@ impl Parser {
 
     fn expression_statement(&mut self) -> Result<Statement, ParserError> {
         let expression = self.expression()?;
-        self.expect(TokenKind::Newline, Expected::Newline)?;
         return Ok(Statement::Expression(expression));
     }
 
@@ -332,6 +347,21 @@ impl Parser {
                     got: token.clone(),
                 });
             }
+        }
+    }
+
+    fn terminate(&mut self) -> Result<(), ParserError> {
+        if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Newline)) {
+            self.consume();
+            return Ok(());
+        }
+
+        match self.peek() {
+            None => Ok(()),
+            Some(token) => Err(ParserError::UnexpectedToken {
+                expected: Expected::Newline,
+                got: token.clone(),
+            }),
         }
     }
 
