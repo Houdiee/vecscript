@@ -10,4 +10,8 @@ let u = 6 * x where
     y = 3,
     z = 4
 
-let set_declar : Set::Num = {1, 2, 3}
+let set_declar : Set::Num = {
+  1,
+2,
+3,
+}

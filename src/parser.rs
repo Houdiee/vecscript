@@ -27,7 +27,7 @@ Atom ::= NUMBER
        | LPAREN Expression RParen
        | LBRACE SetContent RBRACE ;
 
-SetContent ::= [ Expression { COMMA [ TERMINATE ] Expression }] ;
+SetContent ::= [ TERMINATE ] [ Expression { COMMA [ TERMINATE ] Expression }] ;
 
 TERMINATE ::= NEWLINE ;
 */
@@ -347,6 +347,7 @@ impl Parser {
     }
 
     fn set_content(&mut self) -> Result<Expression, ParserError> {
+        self.optional_terminator()?;
         let mut expressions = Vec::new();
         if !matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::RBrace))) {
             expressions.push(self.expression()?);
