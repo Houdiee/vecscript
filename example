@@ -5,5 +5,8 @@ let y = 2 # inferred type
 let str : Str = "hello world"
 let invalid_num = 1.23
 
-let x = 3 in x + 4
-let u = 6 * x where x = 2
+let u = 6 * x where
+    x = 2,
+    y = 3,
+    z = 4
+

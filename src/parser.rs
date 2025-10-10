@@ -7,10 +7,10 @@ Statement ::= SolveForInDeclaration TERMINATE
             | Expression TERMINATE ;
 
 LetStatement ::= LetInDeclaration | LetDeclaration ;
-SolveForInDeclaration ::= SOLVE FOR IDENTIFIER [ TypeAnnotation ] IN Expression EQUALS Expression ;
-LetInDeclaration      ::= LET Binding IN Expression ;
+SolveForInDeclaration ::= SOLVE FOR IDENTIFIER [ TypeAnnotation ] IN [ TERMINATE ] Expression EQUALS Expression ;
+LetInDeclaration      ::= LET Binding IN [ TERMINATE ] Expression ;
 LetDeclaration        ::= LET Binding [ WhereClause ] ;
-WhereClause ::= WHERE Binding { COMMA Binding } ;
+WhereClause ::= WHERE [ TERMINATE ] Binding { COMMA [ TERMINATE ] Binding } ;
 
 SetDeclaration ::= LET IDENTIFIER [ TypeAnnotation ] EQUALS LBRACE [ Expression { COMMA Expression } ] RBRACE ;
 
@@ -32,6 +32,7 @@ Atom ::= NUMBER
 TERMINATE ::= NEWLINE ;
 */
 
+// TODO fix the solve for in statement
 use crate::{ast::*, token::*};
 
 #[derive(Debug)]
@@ -146,11 +147,11 @@ impl Parser {
         self.expect(TokenKind::Keyword(Keyword::Let), Expected::LetStatement)?;
         let binding = self.binding()?;
 
-        // LetInDeclaration ::= LET Binding IN Expression ;
+        // LetInDeclaration ::= LET Binding IN [ TERMINATE ] Expression ;
         if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::In))) {
             self.consume();
+            self.optional_terminator()?;
             let bound_to = self.expression()?;
-
             return Ok(Statement::LetInDeclaration {
                 binding,
                 bound_to: Box::new(bound_to),
@@ -162,18 +163,21 @@ impl Parser {
         return Ok(Statement::LetDeclaration { binding, where_clause });
     }
 
-    // WhereClause ::= WHERE Binding { COMMA Binding } ;
+    // WhereClause ::= WHERE [ TERMINATE ] Binding { COMMA [ TERMINATE ] Binding } ;
     fn where_clause(&mut self) -> Result<Option<WhereClause>, ParserError> {
         if !matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::Where))) {
             return Ok(None);
         }
 
         self.expect(TokenKind::Keyword(Keyword::Where), Expected::WhereClause)?;
+        self.optional_terminator()?;
+
         let mut bindings = Vec::new();
         bindings.push(self.binding()?);
 
         while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Comma))) {
             self.consume();
+            self.optional_terminator()?;
             bindings.push(self.binding()?);
         }
         Ok(Some(WhereClause { bindings }))
@@ -348,6 +352,13 @@ impl Parser {
                 });
             }
         }
+    }
+
+    fn optional_terminator(&mut self) -> Result<(), ParserError> {
+        if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Newline)) {
+            self.consume();
+        }
+        Ok(())
     }
 
     fn terminate(&mut self) -> Result<(), ParserError> {
