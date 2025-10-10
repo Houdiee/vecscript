@@ -45,6 +45,7 @@ pub enum Keyword {
 
 #[derive(Debug, Clone)]
 pub enum Delimiter {
+    Range,       // ..
     DoubleColon, // ::
     Colon,       // :
     Comma,       // ,
@@ -54,6 +55,7 @@ pub enum Delimiter {
     RBrack,      // ]
     LBrace,      // {
     RBrace,      // }
+    Pipe,        // |
 }
 
 #[derive(Debug, Clone)]

@@ -5,12 +5,9 @@ let y = 2 # inferred type
 let str : Str = "hello world"
 let invalid_num = 1.23
 
-let set_declar : Set::Num = {1, 2, 3}
-let set_str_declar = {"1", "2", "3"}
-let invalid_set = {1, "2"}
-
 let u = 6 * x where
     x = 2 + 4,
     y = 3,
     z = 4
 
+let set_declar : Set::Num = {1, 2, 3}

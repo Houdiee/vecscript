@@ -13,6 +13,7 @@ Binding ::= IDENTIFIER [ TypeAnnotation ] EQUALS Expression ;
 TypeAnnotation ::= COLON TYPE ;
 Type ::= BASETYPE | SET DOUBLECOLON BASETYPE ;
 
+
 Expression ::= ComparisonExpression ;
 ComparisonExpression ::= ArithmeticExpression { OPERATOR ArithmeticExpression } ;
 ArithmeticExpression ::= MultiplicativeExpression {( PLUS | MINUS ) MultiplicativeExpression } ;
@@ -23,12 +24,14 @@ Atom ::= NUMBER
        | BOOL
        | STRING
        | IDENTIFIER
-       | LPAREN Expression RPAREN ;
+       | LPAREN Expression RParen
+       | LBRACE SetContent RBRACE ;
+
+SetContent ::= [ Expression { COMMA [ TERMINATE ] Expression }] ;
 
 TERMINATE ::= NEWLINE ;
 */
 
-// TODO fix the solve for in statement
 use crate::{ast::*, token::*};
 
 #[derive(Debug)]
@@ -97,7 +100,8 @@ impl Parser {
             | TokenKind::Bool(_)
             | TokenKind::String(_)
             | TokenKind::Identifier(_)
-            | TokenKind::Delimiter(Delimiter::LParen) => self.expression_statement(),
+            | TokenKind::Delimiter(Delimiter::LParen)
+            | TokenKind::Delimiter(Delimiter::LBrace) => self.expression_statement(),
 
             _ => Err(ParserError::UnexpectedToken {
                 expected: Expected::ValidToken,
@@ -325,6 +329,14 @@ impl Parser {
                 );
                 return Ok(inner_expression);
             }
+            TokenKind::Delimiter(Delimiter::LBrace) => {
+                let set_literal = self.set_content()?;
+                self.expect(
+                    TokenKind::Delimiter(Delimiter::RBrace),
+                    Expected::ClosingDelimiter(Delimiter::RBrace),
+                );
+                return Ok(set_literal);
+            }
             _ => {
                 return Err(ParserError::UnexpectedToken {
                     expected: Expected::Atom,
@@ -332,6 +344,24 @@ impl Parser {
                 });
             }
         }
+    }
+
+    fn set_content(&mut self) -> Result<Expression, ParserError> {
+        let mut expressions = Vec::new();
+        if !matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::RBrace))) {
+            expressions.push(self.expression()?);
+            while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Comma))) {
+                self.consume();
+                self.optional_terminator()?;
+
+                if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::RBrace))) {
+                    break;
+                }
+
+                expressions.push(self.expression()?);
+            }
+        }
+        Ok(Expression::SetLiteral(expressions))
     }
 
     fn optional_terminator(&mut self) -> Result<(), ParserError> {

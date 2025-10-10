@@ -65,7 +65,7 @@ impl<'src> Lexer<'src> {
 
             b'=' | b'+' | b'-' | b'*' | b'/' | b'^' | b'%' | b'<' | b'>' => self.operator(span_start),
 
-            b':' | b',' | b'(' | b')' | b'[' | b']' | b'{' | b'}' => self.delimiter(span_start),
+            b':' | b',' | b'(' | b')' | b'[' | b']' | b'{' | b'}' | b'|' => self.delimiter(span_start),
 
             b'0'..=b'9' => self.digit(span_start),
 
@@ -182,6 +182,7 @@ impl<'src> Lexer<'src> {
         let delim_kind = match delim {
             b':' => {
                 if matches!(self.peek(), Some(b':')) {
+                    self.consume();
                     Delimiter::DoubleColon
                 } else {
                     Delimiter::Colon
@@ -194,6 +195,18 @@ impl<'src> Lexer<'src> {
             b']' => Delimiter::RBrack,
             b'{' => Delimiter::LBrace,
             b'}' => Delimiter::RBrace,
+            b'|' => Delimiter::Pipe,
+            b'.' => {
+                if matches!(self.peek(), Some(b'.')) {
+                    self.consume();
+                    Delimiter::Range
+                } else {
+                    return Err(LexerError {
+                        kind: LexerErrorKind::InvalidCharacter,
+                        span: span_start..self.position,
+                    });
+                }
+            }
             _ => unreachable!("Invalid delimiter"),
         };
 

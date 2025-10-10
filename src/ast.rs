@@ -19,7 +19,6 @@ pub struct WhereClause {
 
 #[derive(Debug)]
 pub enum Expression {
-    Expression(Box<Expression>),
     Number(f64),
     Bool(bool),
     String(String),
