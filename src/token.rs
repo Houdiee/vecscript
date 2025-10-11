@@ -62,6 +62,8 @@ pub enum Delimiter {
 pub enum Operator {
     Is,               // is
     Not,              // not
+    And,              // and
+    Or,               // or
     EqualLessThan,    // <=
     EqualGreaterThan, // >=
     LessThan,         // <

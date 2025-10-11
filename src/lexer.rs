@@ -106,6 +106,8 @@ impl<'src> Lexer<'src> {
             "let" => TokenKind::Keyword(Keyword::Let),
             "where" => TokenKind::Keyword(Keyword::Where),
             "in" => TokenKind::Keyword(Keyword::In),
+
+            // Type Constructors
             "Set" => TokenKind::Keyword(Keyword::Set),
 
             // Booleans
@@ -120,6 +122,8 @@ impl<'src> Lexer<'src> {
             // Operators
             "is" => TokenKind::Operator(Operator::Is),
             "not" => TokenKind::Operator(Operator::Not),
+            "and" => TokenKind::Operator(Operator::And),
+            "or" => TokenKind::Operator(Operator::Or),
 
             _ => TokenKind::Identifier(word.to_string()),
         };

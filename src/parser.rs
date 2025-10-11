@@ -13,7 +13,6 @@ Binding ::= IDENTIFIER [ TypeAnnotation ] EQUALS Expression ;
 TypeAnnotation ::= COLON TYPE ;
 Type ::= BASETYPE | SET DOUBLECOLON BASETYPE ;
 
-
 Expression ::= ComparisonExpression ;
 ComparisonExpression ::= ArithmeticExpression { OPERATOR ArithmeticExpression } ;
 ArithmeticExpression ::= MultiplicativeExpression {( PLUS | MINUS ) MultiplicativeExpression } ;
