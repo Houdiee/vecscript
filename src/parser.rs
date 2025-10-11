@@ -5,10 +5,11 @@ Statement ::= LetStatement TERMINATE
             | Expression TERMINATE ;
 
 LetStatement ::= LetInDeclaration | LetDeclaration ;
-LetInDeclaration      ::= LET Binding IN [ TERMINATE ] Expression ;
-LetDeclaration        ::= LET Binding [ WhereClause ] ;
-WhereClause ::= WHERE [ TERMINATE ] Binding { COMMA [ TERMINATE ] Binding } ;
+LetInDeclaration      ::= LET MultiBinding IN [ TERMINATE ] Expression ;
+LetDeclaration        ::= LET MultiBinding [ WhereClause ] ;
+WhereClause ::= [ TERMINATE ] WHERE [ TERMINATE ] Binding { COMMA [ TERMINATE ] Binding } ;
 
+MultiBinding ::= Binding { COMMA [ TERMINATE ] Binding } ;
 Binding ::= IDENTIFIER [ TypeAnnotation ] EQUALS Expression ;
 TypeAnnotation ::= COLON TYPE ;
 Type ::= BASETYPE | SET DOUBLECOLON BASETYPE ;
@@ -111,45 +112,57 @@ impl Parser {
         Ok(statement)
     }
 
-    // LetStatement ::= LetInDeclaration | LetDeclaration ;
     fn let_statement(&mut self) -> Result<Statement, ParserError> {
         self.expect(TokenKind::Keyword(Keyword::Let), Expected::LetStatement)?;
-        let binding = self.binding()?;
+        let bindings = self.multi_binding()?;
 
-        // LetInDeclaration ::= LET Binding IN [ TERMINATE ] Expression ;
         if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::In))) {
             self.consume();
             self.optional_terminator()?;
             let bound_to = self.expression()?;
-            return Ok(Statement::LetInDeclaration {
-                binding,
-                bound_to: Box::new(bound_to),
-            });
+            return Ok(Statement::LetInDeclaration { bound_to, bindings });
         }
 
-        // LetDeclaration ::= LET Binding [ WhereClause ] ;
-        let where_clause = self.where_clause()?;
-        return Ok(Statement::LetDeclaration { binding, where_clause });
+        let mut where_clause = self.where_clause()?;
+
+        Ok(Statement::LetDeclaration {
+            bound_to: bindings,
+            bindings: where_clause,
+        })
     }
 
-    // WhereClause ::= WHERE [ TERMINATE ] Binding { COMMA [ TERMINATE ] Binding } ;
     fn where_clause(&mut self) -> Result<Option<WhereClause>, ParserError> {
-        if !matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::Where))) {
-            return Ok(None);
+        let current_kind = self.peek().map(|t| &t.kind);
+
+        if matches!(current_kind, Some(TokenKind::Newline)) {
+            if matches!(
+                self.tokens.get(self.position + 1).map(|t| &t.kind),
+                Some(TokenKind::Keyword(Keyword::Where))
+            ) {
+                self.consume();
+            } else {
+                return Ok(None);
+            }
         }
 
-        self.expect(TokenKind::Keyword(Keyword::Where), Expected::WhereClause)?;
-        self.optional_terminator()?;
+        if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::Where))) {
+            self.expect(TokenKind::Keyword(Keyword::Where), Expected::WhereClause)?;
+            self.optional_terminator()?;
+            let bindings = self.multi_binding()?;
+            return Ok(Some(bindings));
+        }
+        Ok(None)
+    }
 
+    fn multi_binding(&mut self) -> Result<Vec<Binding>, ParserError> {
         let mut bindings = Vec::new();
         bindings.push(self.binding()?);
-
         while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Comma))) {
             self.consume();
             self.optional_terminator()?;
             bindings.push(self.binding()?);
         }
-        Ok(Some(WhereClause { bindings }))
+        Ok(bindings)
     }
 
     // Binding ::= IDENTIFIER [ TypeAnnotation ] EQUALS Expression ;
@@ -264,7 +277,7 @@ impl Parser {
                 TokenKind::Operator(op) if matches!(op, Operator::Multiply) || matches!(op, Operator::Divide) => {
                     let op = op.clone();
                     self.consume();
-                    let right = self.multiplicative_expression()?;
+                    let right = self.unary_expression()?;
                     left = Expression::BinaryOp {
                         left: Box::new(left),
                         op,
@@ -379,10 +392,13 @@ impl Parser {
 
         match self.peek() {
             None => Ok(()),
-            Some(token) => Err(ParserError::UnexpectedToken {
-                expected: Expected::Newline,
-                got: token.clone(),
-            }),
+            Some(token) => match &token.kind {
+                TokenKind::EOF => Ok(()),
+                _ => Err(ParserError::UnexpectedToken {
+                    expected: Expected::Newline,
+                    got: token.clone(),
+                }),
+            },
         }
     }
 

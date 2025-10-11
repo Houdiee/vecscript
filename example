@@ -2,16 +2,13 @@
 
 let x : Num = 1 # declare a variable
 let y = 2 # inferred type
+
 let str : Str = "hello world"
+
 let invalid_num = 1.23
 
-let u = 6 * x where
-    x = 2 + 4,
-    y = 3,
-    z = 4
-
-let set_declar : Set::Num = { 1, 2, 3, x, y } where
-  x = 4,
-  y = 5
-
-let squared(n: Num) = x^2
+let x : Num = 1,
+    y : Num = 3,
+    z : Str = "Hello, World!",
+    a = b
+where b = 2

@@ -12,10 +12,8 @@ pub struct Binding {
     pub var_expression: Expression,
 }
 
-#[derive(Debug)]
-pub struct WhereClause {
-    pub bindings: Vec<Binding>,
-}
+pub type WhereClause = Vec<Binding>;
+pub type InClause = Vec<Binding>;
 
 #[derive(Debug)]
 pub enum Expression {
@@ -38,14 +36,12 @@ pub enum Expression {
 #[derive(Debug)]
 pub enum Statement {
     LetInDeclaration {
-        binding: Binding,
-        bound_to: Box<Expression>,
+        bound_to: Expression,
+        bindings: InClause,
     },
-
     LetDeclaration {
-        binding: Binding,
-        where_clause: Option<WhereClause>,
+        bound_to: Vec<Binding>,
+        bindings: Option<WhereClause>,
     },
-
     Expression(Expression),
 }
