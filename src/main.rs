@@ -8,14 +8,11 @@ pub mod token;
 fn main() {
     let file_name = "example";
     let source = std::fs::read_to_string(&file_name).unwrap();
-    let mut lexer = Lexer::init(&source).unwrap();
-    let tokens: Vec<Token> = lexer
-        .scan()
-        .into_iter() // Use into_iter() to consume the Vec
-        .map(|t| t.expect("Lexing error occurred")) // Assuming scan() returns Vec<Result<Token, LexerError>>
-        .collect();
 
-    let mut parser = Parser::new(tokens);
-    let ast = parser.parse();
-    println!("{:?}", ast);
+    let mut lexer = Lexer::init(&source).expect("Failed to initialize lexer.");
+    let tokens: Vec<Token> = lexer.lex().into_iter().map(|t| t.unwrap()).collect();
+
+    let mut parser = Parser::init(tokens);
+    let program = parser.parse_program();
+    println!("{:?}", program);
 }

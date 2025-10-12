@@ -1,14 +1,5 @@
-# an example mathematics DSL file
+5 + 3 * 5 / 2
+let let a : Num = 121893810923
+let boolean = true
+let string = "Hello, World!"
 
-let x : Num = 1 # declare a variable
-let y = 2 # inferred type
-
-let str : Str = "hello world"
-
-let invalid_num = 1.23
-
-let x : Num = 1,
-    y : Num = 3,
-    z : Str = "Hello, World!",
-    a = b
-where b = 2

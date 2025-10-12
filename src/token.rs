@@ -16,6 +16,7 @@ pub enum TokenKind {
     Number(f64),
     Bool(bool),
     String(String),
+    Assign,
     Newline,
     EOF,
 }
@@ -58,7 +59,7 @@ pub enum Delimiter {
     Pipe,        // |
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum Operator {
     Is,               // is
     Not,              // not
@@ -68,11 +69,23 @@ pub enum Operator {
     EqualGreaterThan, // >=
     LessThan,         // <
     GreaterThan,      // >
-    Equals,           // =
     Plus,             // +
     Minus,            // -
     Multiply,         // *
     Divide,           // /
     Power,            // ^
     Modulo,           // %
+}
+
+pub type BindingPower = u8;
+pub fn get_binding_power(op: Operator) -> (BindingPower, BindingPower) {
+    use Operator::*;
+    match op {
+        Power => (10, 9),
+        Multiply | Divide | Modulo => (8, 7),
+        Plus | Minus => (6, 5),
+        LessThan | EqualLessThan | GreaterThan | EqualGreaterThan => (4, 3),
+        Is | Not => (2, 1),
+        And | Or => (1, 0),
+    }
 }

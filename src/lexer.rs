@@ -21,6 +21,41 @@ pub struct Lexer<'src> {
     position: usize,
 }
 
+impl<'src> Iterator for Lexer<'src> {
+    type Item = Result<Token, LexerError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.skip();
+        let span_start = self.position;
+        let current = self.peek()?;
+
+        let result = match current {
+            b'a'..=b'z' | b'A'..=b'Z' | b'_' => self.word(span_start),
+
+            b'+' | b'-' | b'*' | b'/' | b'^' | b'%' | b'<' | b'>' => self.operator(span_start),
+
+            b':' | b',' | b'(' | b')' | b'[' | b']' | b'{' | b'}' | b'|' | b'.' => self.delimiter(span_start),
+
+            b'0'..=b'9' => self.digit(span_start),
+
+            b'"' => self.string(span_start),
+
+            b'=' => self.assign(span_start),
+
+            b'\n' => self.newline(span_start),
+
+            _ => {
+                self.consume();
+                Err(LexerError {
+                    kind: LexerErrorKind::InvalidCharacter,
+                    span: span_start..self.position,
+                })
+            }
+        };
+        Some(result)
+    }
+}
+
 impl<'src> Lexer<'src> {
     pub fn init(source: &'src str) -> Result<Self, LexerError> {
         let source = source.as_bytes();
@@ -34,53 +69,12 @@ impl<'src> Lexer<'src> {
         Ok(Self { source, position: 0 })
     }
 
-    pub fn scan(&mut self) -> Vec<Result<Token, LexerError>> {
+    pub fn lex(&mut self) -> Vec<Result<Token, LexerError>> {
         let mut tokens = Vec::new();
-        loop {
-            let token_result = self.next();
-            if token_result.as_ref().is_ok_and(|t| matches!(t.kind, TokenKind::EOF)) {
-                tokens.push(token_result);
-                break;
-            }
+        while let Some(token_result) = self.next() {
             tokens.push(token_result);
         }
         return tokens;
-    }
-
-    fn next(&mut self) -> Result<Token, LexerError> {
-        self.skip();
-        let span_start = self.position;
-        let current = match self.peek() {
-            None => {
-                return Ok(Token {
-                    kind: TokenKind::EOF,
-                    span: span_start..self.position,
-                });
-            }
-            Some(byte) => byte,
-        };
-
-        match current {
-            b'a'..=b'z' | b'A'..=b'Z' | b'_' => self.word(span_start),
-
-            b'=' | b'+' | b'-' | b'*' | b'/' | b'^' | b'%' | b'<' | b'>' => self.operator(span_start),
-
-            b':' | b',' | b'(' | b')' | b'[' | b']' | b'{' | b'}' | b'|' => self.delimiter(span_start),
-
-            b'0'..=b'9' => self.digit(span_start),
-
-            b'"' => self.string(span_start),
-
-            b'\n' => self.newline(span_start),
-
-            _ => {
-                self.consume();
-                Err(LexerError {
-                    kind: LexerErrorKind::InvalidCharacter,
-                    span: span_start..self.position,
-                })
-            }
-        }
     }
 
     fn word(&mut self, span_start: usize) -> Result<Token, LexerError> {
@@ -141,7 +135,6 @@ impl<'src> Lexer<'src> {
         })?;
 
         let op_kind = match op {
-            b'=' => Operator::Equals,
             b'+' => Operator::Plus,
             b'-' => Operator::Minus,
             b'*' => Operator::Multiply,
@@ -307,6 +300,14 @@ impl<'src> Lexer<'src> {
                 }
             }
         }
+    }
+
+    fn assign(&mut self, span_start: usize) -> Result<Token, LexerError> {
+        self.consume();
+        Ok(Token {
+            kind: TokenKind::Assign,
+            span: span_start..self.position,
+        })
     }
 
     fn newline(&mut self, span_start: usize) -> Result<Token, LexerError> {
