@@ -3,8 +3,8 @@ Program ::= { Statement }
 Statement ::= LetDeclaration
             | Expression
             ;
-LetStatement ::= LetAssignment ;
-LetAssignment ::= LET IDENTIFIER [ TypeAnnotation ] ASSIGN Expression ;
+LetStatement ::= LetDeclaration ;
+LetDeclaration::= LET IDENTIFIER [ TypeAnnotation ] ASSIGN Expression ;
 TypeAnnotation ::= COLON TYPE ;
 
 Expression ::= Atom [ OPERATOR Atom ]
@@ -29,6 +29,7 @@ pub enum ParserErrorKind {
     UnexpectedToken { expected: Expected },
     UnexpectedEOF,
     InvalidExpression,
+    InvalidUnaryOperator,
     InvalidToken,
 }
 
@@ -174,6 +175,16 @@ impl Parser {
                     }),
                 }
             }
+            TokenKind::Operator(op) => match get_prefix_binding_power(op) {
+                Some(rbp) => {
+                    let rhs = self.parse_expression_with_min_bp(rbp)?;
+                    Ok(Expression::UnaryOp(op, Box::new(rhs)))
+                }
+                None => Err(ParserError {
+                    kind: ParserErrorKind::InvalidUnaryOperator,
+                    token: token,
+                }),
+            },
             _ => Err(ParserError {
                 kind: ParserErrorKind::InvalidExpression,
                 token: token,
@@ -232,5 +243,26 @@ impl Parser {
             kind: ParserErrorKind::UnexpectedEOF,
             token: token.clone(),
         }
+    }
+}
+
+type BindingPower = u8;
+fn get_binding_power(op: Operator) -> (BindingPower, BindingPower) {
+    use Operator::*;
+    match op {
+        Power => (100, 90),
+        Multiply | Divide | Modulo => (80, 70),
+        Plus | Minus => (60, 50),
+        LessThan | EqualLessThan | GreaterThan | EqualGreaterThan => (40, 30),
+        Is | Not => (20, 10),
+        And | Or => (10, 0),
+    }
+}
+
+fn get_prefix_binding_power(op: Operator) -> Option<BindingPower> {
+    use Operator::*;
+    match op {
+        Minus => Some(79),
+        _ => None,
     }
 }

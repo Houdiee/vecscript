@@ -13,6 +13,8 @@ fn main() {
     let tokens: Vec<Token> = lexer.lex().into_iter().map(|t| t.unwrap()).collect();
 
     let mut parser = Parser::init(tokens);
-    let program = parser.parse_program();
-    println!("{:?}", program);
+    let program = parser.parse_program().unwrap();
+    for statement in program.statements {
+        println!("{:?}", statement);
+    }
 }

@@ -1,5 +1,8 @@
-5 + 3 * 5 / 2
-let let a : Num = 121893810923
+# An example vecscript file
+
+-5 + 3 * 5 / 2
+let a : Num = 121893810923
 let boolean = true
 let string = "Hello, World!"
+
 
