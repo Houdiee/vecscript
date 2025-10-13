@@ -6,10 +6,10 @@ Statement ::= LetDeclaration TERMINATE
 
 LetDeclaration::= LET Binding [ WhereClause ] ;
 
-WhereClause ::= WHERE MultiBinding ;
+WhereClause ::= [ TERMINATE ] WHERE [ TERMINATE ] BindingList ;
 
 Binding ::= IDENTIFIER [ TypeAnnotation ] ASSIGN Expression ;
-BindingList ::= Binding { COMMA Binding } ;
+BindingList ::= Binding { COMMA [ TERMINATE ] Binding } ;
 TypeAnnotation ::= COLON TYPE ;
 
 
@@ -92,14 +92,21 @@ impl Parser {
     fn parse_let_statement(&mut self) -> Result<Statement, ParserError> {
         self.expect(|kind| matches!(kind, TokenKind::Keyword(Keyword::Let)), Expected::KeywordLet)?;
         let binding = self.parse_binding()?;
+        let where_clause = self.parse_where_clause()?;
+
+        Ok(Statement::LetDeclaration { binding, where_clause })
+    }
+
+    fn parse_where_clause(&mut self) -> Result<Option<WhereClause>, ParserError> {
+        self.parse_optional_terminator()?;
         let mut where_clause = None;
         if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::Where))) {
             self.consume();
+            self.parse_optional_terminator()?;
             let bindings = self.parse_binding_list()?;
             where_clause = Some(bindings);
         }
-
-        Ok(Statement::LetDeclaration { binding, where_clause })
+        Ok(where_clause)
     }
 
     fn parse_binding_list(&mut self) -> Result<Vec<Binding>, ParserError> {
@@ -108,6 +115,7 @@ impl Parser {
 
         while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Comma))) {
             self.consume();
+            self.parse_optional_terminator()?;
             bindings.push(self.parse_binding()?);
         }
         Ok(bindings)
@@ -243,6 +251,13 @@ impl Parser {
         while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Newline)) {
             self.consume();
         }
+    }
+
+    fn parse_optional_terminator(&mut self) -> Result<(), ParserError> {
+        if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Newline)) {
+            self.parse_terminator()?;
+        }
+        Ok(())
     }
 
     fn parse_terminator(&mut self) -> Result<(), ParserError> {
