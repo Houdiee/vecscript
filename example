@@ -1,8 +1,1 @@
-# An example vecscript file
-
--5x + 3 * 5 / 2(4)
-let a : Num = 121893810923
-let boolean = true
-let string = "Hello, World!"
-
-
+let foo = a where a = 2

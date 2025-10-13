@@ -1,11 +1,17 @@
 /*
 Program ::= { Statement }
-Statement ::= LetDeclaration
+Statement ::= LetDeclaration TERMINATE
             | Expression
             ;
-LetStatement ::= LetDeclaration ;
-LetDeclaration::= LET IDENTIFIER [ TypeAnnotation ] ASSIGN Expression ;
+
+LetDeclaration::= LET Binding [ WhereClause ] ;
+
+WhereClause ::= WHERE MultiBinding ;
+
+Binding ::= IDENTIFIER [ TypeAnnotation ] ASSIGN Expression ;
+BindingList ::= Binding { COMMA Binding } ;
 TypeAnnotation ::= COLON TYPE ;
+
 
 Expression ::= Atom [ OPERATOR Atom ]
 Atom ::= NUMBER
@@ -85,7 +91,29 @@ impl Parser {
 
     fn parse_let_statement(&mut self) -> Result<Statement, ParserError> {
         self.expect(|kind| matches!(kind, TokenKind::Keyword(Keyword::Let)), Expected::KeywordLet)?;
+        let binding = self.parse_binding()?;
+        let mut where_clause = None;
+        if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::Where))) {
+            self.consume();
+            let bindings = self.parse_binding_list()?;
+            where_clause = Some(bindings);
+        }
 
+        Ok(Statement::LetDeclaration { binding, where_clause })
+    }
+
+    fn parse_binding_list(&mut self) -> Result<Vec<Binding>, ParserError> {
+        let mut bindings = Vec::new();
+        bindings.push(self.parse_binding()?);
+
+        while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Comma))) {
+            self.consume();
+            bindings.push(self.parse_binding()?);
+        }
+        Ok(bindings)
+    }
+
+    fn parse_binding(&mut self) -> Result<Binding, ParserError> {
         let var_name_token = self.expect(|kind| matches!(kind, TokenKind::Identifier(_)), Expected::VariableDeclaration)?;
         let var_name = match &var_name_token.kind {
             TokenKind::Identifier(name) => name,
@@ -96,7 +124,8 @@ impl Parser {
         let var_type = self.parse_type_annotation()?;
         self.expect(|kind| matches!(kind, TokenKind::Assign), Expected::Assignment)?;
         let expr = self.parse_expression()?;
-        Ok(Statement::LetDeclaration { var_name, var_type, expr })
+
+        Ok(Binding { var_name, var_type, expr })
     }
 
     fn parse_type_annotation(&mut self) -> Result<Option<Type>, ParserError> {

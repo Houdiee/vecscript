@@ -6,6 +6,13 @@ pub struct Program {
 }
 
 #[derive(Debug)]
+pub struct Binding {
+    pub var_name: String,
+    pub var_type: Option<Type>,
+    pub expr: Expression,
+}
+
+#[derive(Debug)]
 pub enum Expression {
     Number(f64),
     String(String),
@@ -15,12 +22,13 @@ pub enum Expression {
     UnaryOp(Operator, Box<Expression>),
 }
 
+pub type WhereClause = Vec<Binding>;
+
 #[derive(Debug)]
 pub enum Statement {
     LetDeclaration {
-        var_name: String,
-        var_type: Option<Type>,
-        expr: Expression,
+        binding: Binding,
+        where_clause: Option<WhereClause>,
     },
     Expression(Expression),
 }
