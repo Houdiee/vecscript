@@ -128,6 +128,24 @@ impl Parser {
     fn parse_expression_with_min_bp(&mut self, min_bp: BindingPower) -> Result<Expression, ParserError> {
         let mut lhs = self.parse_atom()?;
         loop {
+            // implicit multiplication
+            if matches!(lhs, Expression::Number(_))
+                && matches!(
+                    self.peek().map(|t| &t.kind),
+                    Some(TokenKind::Identifier(_)) | Some(TokenKind::Delimiter(Delimiter::LParen))
+                )
+            {
+                let op = Operator::Multiply;
+                let (lbp, rbp) = get_binding_power(op);
+                if lbp < min_bp {
+                    break;
+                }
+
+                let rhs = self.parse_expression_with_min_bp(rbp)?;
+                lhs = Expression::BinaryOp(Box::new(lhs), op, Box::new(rhs));
+                continue;
+            }
+
             let op_token = match self.peek() {
                 Some(op) => op,
                 None => break,

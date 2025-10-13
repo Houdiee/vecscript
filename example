@@ -1,6 +1,6 @@
 # An example vecscript file
 
--5 + 3 * 5 / 2
+-5x + 3 * 5 / 2(4)
 let a : Num = 121893810923
 let boolean = true
 let string = "Hello, World!"
