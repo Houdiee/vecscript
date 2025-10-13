@@ -54,11 +54,5 @@ pub enum Statement {
         binding: Binding,
         where_clause: Option<WhereClause>,
     },
-    FunctionDeclaration {
-        name: String,
-        parameters: Vec<FunctionParameter>,
-        return_type: Option<Type>,
-        body: Box<Statement>,
-    },
     Expression(Expression),
 }

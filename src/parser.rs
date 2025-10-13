@@ -198,13 +198,52 @@ impl Parser {
         })
     }
 
+    fn parse_function_call(&mut self, function_expr: Expression) -> Result<Expression, ParserError> {
+        self.expect(
+            |kind| matches!(kind, TokenKind::Delimiter(Delimiter::LParen)),
+            Expected::OpeningDelimiter(Delimiter::LParen),
+        )?;
+
+        let arguments = self.parse_argument_list()?;
+
+        self.expect(
+            |kind| matches!(kind, TokenKind::Delimiter(Delimiter::RParen)),
+            Expected::ClosingDelimiter(Delimiter::RParen),
+        )?;
+
+        Ok(Expression::FunctionCall {
+            function_expr: Box::new(function_expr),
+            arguments,
+        })
+    }
+
+    fn parse_argument_list(&mut self) -> Result<Vec<Expression>, ParserError> {
+        let mut params = Vec::new();
+        if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::RParen))) {
+            return Ok(params);
+        }
+
+        params.push(self.parse_expression()?);
+        while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Comma))) {
+            self.consume();
+            params.push(self.parse_expression()?);
+        }
+
+        Ok(params)
+    }
+
     fn parse_parameter_list(&mut self) -> Result<Vec<FunctionParameter>, ParserError> {
         let mut params = Vec::new();
+        if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::RParen))) {
+            return Ok(params);
+        }
+
         params.push(self.parse_parameter()?);
         while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Comma))) {
             self.consume();
             params.push(self.parse_parameter()?);
         }
+
         Ok(params)
     }
 
@@ -247,6 +286,16 @@ impl Parser {
     fn parse_expression_with_min_bp(&mut self, min_bp: BindingPower) -> Result<Expression, ParserError> {
         let mut lhs = self.parse_atom()?;
         loop {
+            // function call
+            if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::LParen))) {
+                let (lbp, rbp) = get_function_call_binding_power();
+                if lbp < min_bp {
+                    break;
+                }
+                lhs = self.parse_function_call(lhs)?;
+                continue;
+            }
+
             // implicit multiplication
             if matches!(lhs, Expression::Number(_))
                 && matches!(
@@ -409,4 +458,8 @@ fn get_prefix_binding_power(op: Operator) -> Option<BindingPower> {
         Minus => Some(79),
         _ => None,
     }
+}
+
+fn get_function_call_binding_power() -> (u8, u8) {
+    (150, 149)
 }
