@@ -6,14 +6,20 @@ Statement ::= LetDeclaration TERMINATE
 
 LetDeclaration::= LET Binding [ WhereClause ] ;
 
-WhereClause ::= [ TERMINATE ] WHERE [ TERMINATE ] BindingList ;
-
-Binding ::= IDENTIFIER [ TypeAnnotation ] ASSIGN Expression ;
+Binding ::= VariableBinding | FunctionBinding ;
 BindingList ::= Binding { COMMA [ TERMINATE ] Binding } ;
+
+VariableBinding ::= IDENTIFIER [ TypeAnnotation ] ASSIGN Expression ;
+FunctionBinding ::= IDENTIFIER LPAREN [ ParameterList ] RPAREN [ TypeAnnotation ] ASSIGN Expression ;
+
+Parameter ::= IDENTIFIER [ TypeAnnotation ] ;
+ParameterList ::= Parameter { COMMA Parameter } ;
+
 TypeAnnotation ::= COLON TYPE ;
 
+WhereClause ::= WHERE [ TERMINATE ] BindingList ;
 
-Expression ::= Atom [ OPERATOR Atom ]
+Expression ::= Atom [ OPERATOR Atom ] | FUNCTIONCALL ;
 Atom ::= NUMBER
        | STRING
        | BOOL
@@ -42,12 +48,16 @@ pub enum ParserErrorKind {
 #[derive(Debug)]
 pub enum Expected {
     ClosingDelimiter(Delimiter),
+    OpeningDelimiter(Delimiter),
     KeywordLet,
     VariableDeclaration,
     TypeAnnotation,
     Type,
     Assignment,
     Terminator,
+    FunctionParameter,
+    Identifier,
+    Binding,
 }
 
 #[derive(Debug)]
@@ -82,14 +92,14 @@ impl Parser {
     fn parse_statement(&mut self) -> Result<Statement, ParserError> {
         let current = self.peek().unwrap();
         let statement = match &current.kind {
-            TokenKind::Keyword(Keyword::Let) => self.parse_let_statement()?,
+            TokenKind::Keyword(Keyword::Let) => self.parse_let_declaration()?,
             _ => self.parse_expression_statement()?,
         };
         self.parse_terminator()?;
         Ok(statement)
     }
 
-    fn parse_let_statement(&mut self) -> Result<Statement, ParserError> {
+    fn parse_let_declaration(&mut self) -> Result<Statement, ParserError> {
         self.expect(|kind| matches!(kind, TokenKind::Keyword(Keyword::Let)), Expected::KeywordLet)?;
         let binding = self.parse_binding()?;
         let where_clause = self.parse_where_clause()?;
@@ -98,15 +108,14 @@ impl Parser {
     }
 
     fn parse_where_clause(&mut self) -> Result<Option<WhereClause>, ParserError> {
-        self.parse_optional_terminator()?;
-        let mut where_clause = None;
-        if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::Where))) {
-            self.consume();
-            self.parse_optional_terminator()?;
-            let bindings = self.parse_binding_list()?;
-            where_clause = Some(bindings);
+        if !matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::Where))) {
+            return Ok(None);
         }
-        Ok(where_clause)
+
+        self.consume();
+        self.parse_optional_newline()?;
+        let bindings = self.parse_binding_list()?;
+        Ok(Some(bindings))
     }
 
     fn parse_binding_list(&mut self) -> Result<Vec<Binding>, ParserError> {
@@ -115,25 +124,98 @@ impl Parser {
 
         while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Comma))) {
             self.consume();
-            self.parse_optional_terminator()?;
+            self.parse_optional_newline()?;
             bindings.push(self.parse_binding()?);
         }
         Ok(bindings)
     }
 
     fn parse_binding(&mut self) -> Result<Binding, ParserError> {
+        let ident_token = self.peek().ok_or_else(|| self.unexpected_eof_error())?;
+        if !matches!(&ident_token.kind, TokenKind::Identifier(_)) {
+            return Err(ParserError {
+                kind: ParserErrorKind::UnexpectedToken {
+                    expected: Expected::Identifier,
+                },
+                token: ident_token.clone(),
+            });
+        }
+
+        let peek_1th = self.peek_nth(1).ok_or_else(|| self.unexpected_eof_error())?;
+        let binding = match peek_1th.kind {
+            TokenKind::Delimiter(Delimiter::Colon) | TokenKind::Assign => Binding::Variable(self.parse_variable_binding()?),
+            TokenKind::Delimiter(Delimiter::LParen) => Binding::Function(self.parse_function_binding()?),
+            _ => {
+                return Err(ParserError {
+                    kind: ParserErrorKind::UnexpectedToken {
+                        expected: Expected::Binding,
+                    },
+                    token: peek_1th.clone(),
+                });
+            }
+        };
+
+        Ok(binding)
+    }
+
+    fn parse_variable_binding(&mut self) -> Result<VariableBinding, ParserError> {
         let var_name_token = self.expect(|kind| matches!(kind, TokenKind::Identifier(_)), Expected::VariableDeclaration)?;
-        let var_name = match &var_name_token.kind {
+        let var_name = match var_name_token.kind {
             TokenKind::Identifier(name) => name,
             _ => unreachable!(),
-        }
-        .to_owned();
-
+        };
         let var_type = self.parse_type_annotation()?;
         self.expect(|kind| matches!(kind, TokenKind::Assign), Expected::Assignment)?;
         let expr = self.parse_expression()?;
 
-        Ok(Binding { var_name, var_type, expr })
+        Ok(VariableBinding { var_name, var_type, expr })
+    }
+
+    fn parse_function_binding(&mut self) -> Result<FunctionBinding, ParserError> {
+        let name_token = self.expect(|kind| matches!(kind, TokenKind::Identifier(_)), Expected::VariableDeclaration)?;
+        let name = match name_token.kind {
+            TokenKind::Identifier(s) => s,
+            _ => unreachable!(),
+        };
+        self.expect(
+            |kind| matches!(kind, TokenKind::Delimiter(Delimiter::LParen)),
+            Expected::OpeningDelimiter(Delimiter::LParen),
+        )?;
+        let params = self.parse_parameter_list()?;
+        self.expect(
+            |kind| matches!(kind, TokenKind::Delimiter(Delimiter::RParen)),
+            Expected::ClosingDelimiter(Delimiter::RParen),
+        )?;
+        let return_type = self.parse_type_annotation()?;
+        self.expect(|kind| matches!(kind, TokenKind::Assign), Expected::Assignment)?;
+        let body = self.parse_expression()?;
+
+        Ok(FunctionBinding {
+            name,
+            params,
+            return_type,
+            body,
+        })
+    }
+
+    fn parse_parameter_list(&mut self) -> Result<Vec<FunctionParameter>, ParserError> {
+        let mut params = Vec::new();
+        params.push(self.parse_parameter()?);
+        while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Comma))) {
+            self.consume();
+            params.push(self.parse_parameter()?);
+        }
+        Ok(params)
+    }
+
+    fn parse_parameter(&mut self) -> Result<FunctionParameter, ParserError> {
+        let name_token = self.expect(|kind| matches!(kind, TokenKind::Identifier(_)), Expected::FunctionParameter)?;
+        let name = match name_token.kind {
+            TokenKind::Identifier(ident) => ident,
+            _ => unreachable!(),
+        };
+        let param_type = self.parse_type_annotation()?;
+        Ok(FunctionParameter { name, param_type })
     }
 
     fn parse_type_annotation(&mut self) -> Result<Option<Type>, ParserError> {
@@ -206,10 +288,7 @@ impl Parser {
     }
 
     fn parse_atom(&mut self) -> Result<Expression, ParserError> {
-        let token = match self.consume() {
-            Some(t) => t,
-            None => return Err(self.unexpected_eof_error()),
-        };
+        let token = self.consume().ok_or_else(|| self.unexpected_eof_error())?;
         match token.kind {
             TokenKind::Number(num) => Ok(Expression::Number(num)),
             TokenKind::String(str) => Ok(Expression::String(str)),
@@ -217,9 +296,7 @@ impl Parser {
             TokenKind::Identifier(ident) => Ok(Expression::Identifier(ident)),
             TokenKind::Delimiter(Delimiter::LParen) => {
                 let expr = self.parse_expression()?;
-                let Some(closing_token) = self.consume() else {
-                    return Err(self.unexpected_eof_error());
-                };
+                let closing_token = self.consume().ok_or_else(|| self.unexpected_eof_error())?;
                 match &closing_token.kind {
                     TokenKind::Delimiter(Delimiter::RParen) => Ok(expr),
                     _ => Err(ParserError {
@@ -253,9 +330,9 @@ impl Parser {
         }
     }
 
-    fn parse_optional_terminator(&mut self) -> Result<(), ParserError> {
+    fn parse_optional_newline(&mut self) -> Result<(), ParserError> {
         if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Newline)) {
-            self.parse_terminator()?;
+            self.consume();
         }
         Ok(())
     }
@@ -266,9 +343,7 @@ impl Parser {
     }
 
     fn expect(&mut self, predicate: fn(&TokenKind) -> bool, expected: Expected) -> Result<Token, ParserError> {
-        let Some(token) = self.consume().clone() else {
-            return Err(self.unexpected_eof_error());
-        };
+        let token = self.consume().ok_or_else(|| self.unexpected_eof_error())?;
         if !predicate(&token.kind) {
             return Err(ParserError {
                 kind: ParserErrorKind::UnexpectedToken { expected },
@@ -276,6 +351,13 @@ impl Parser {
             });
         }
         Ok(token)
+    }
+
+    fn peek_nth(&self, nth: usize) -> Option<&Token> {
+        if self.position + nth >= self.tokens.len() {
+            return None;
+        }
+        return Some(&self.tokens[self.position + nth]);
     }
 
     fn peek(&self) -> Option<&Token> {

@@ -1,4 +1,9 @@
-let foo = a + b + c
-where a = 1,
+let x = 2
+
+let foo = a + b + c where
+	a = 1,
 	b = 2,
 	c = 3
+
+let double(n : Num): Num = 2n
+
