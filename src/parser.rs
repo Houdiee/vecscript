@@ -117,6 +117,7 @@ impl Parser {
                 });
             }
         };
+        self.parse_terminator()?;
         Ok(definition)
     }
 
@@ -249,12 +250,21 @@ impl Parser {
 
     fn parse_expression(&mut self) -> Result<Expression, ParserError> {
         let next_token = self.peek().ok_or_else(|| self.unexpected_eof_error())?;
-        let expr = match next_token.kind {
-            TokenKind::Keyword(Keyword::Let) => self.parse_let_in_expression()?,
-            TokenKind::Keyword(Keyword::If) => self.parse_if_else_expression()?,
-            _ => self.parse_simple_expression()?,
-        };
-        Ok(expr)
+        match next_token.kind {
+            TokenKind::Keyword(Keyword::Let) => self.parse_let_in_expression(),
+            TokenKind::Keyword(Keyword::If) => self.parse_if_else_expression(),
+            _ => {
+                let simple_expr = Expression::Simple(self.parse_simple_expression()?);
+                let where_suffix = self.parse_where_suffix()?;
+                match where_suffix {
+                    Some(bindings) => Ok(Expression::LetIn {
+                        bindings,
+                        body: Box::new(simple_expr),
+                    }),
+                    None => Ok(simple_expr),
+                }
+            }
+        }
     }
 
     fn parse_let_in_expression(&mut self) -> Result<Expression, ParserError> {
@@ -300,8 +310,131 @@ impl Parser {
         })
     }
 
-    fn parse_simple_expression(&mut self) -> Result<Expression, ParserError> {
-        todo!()
+    fn parse_where_suffix(&mut self) -> Result<Option<VariableBindingList>, ParserError> {
+        if !matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::Where))) {
+            return Ok(None);
+        }
+        self.expect(
+            |kind| matches!(kind, TokenKind::Keyword(Keyword::Where)),
+            Expected::Keyword(Keyword::Where),
+        )?;
+        let bindings = self.parse_variable_binding_list()?;
+        Ok(Some(bindings))
+    }
+
+    fn parse_simple_expression(&mut self) -> Result<SimpleExpression, ParserError> {
+        self.parse_simple_expression_with_min_bp(0)
+    }
+
+    fn parse_simple_expression_with_min_bp(&mut self, min_bp: BindingPower) -> Result<SimpleExpression, ParserError> {
+        let mut lhs = self.parse_prefix()?;
+
+        loop {
+            let next_token = match self.peek() {
+                Some(t) => t,
+                None => break,
+            };
+
+            let op = match next_token.kind {
+                TokenKind::Operator(op) => op,
+                _ => break,
+            };
+
+            let (lbp, rbp) = get_bp(op);
+
+            if lbp < min_bp {
+                break;
+            }
+
+            self.consume();
+
+            let rhs = self.parse_simple_expression_with_min_bp(rbp)?;
+            lhs = SimpleExpression::BinaryOp(Box::new(lhs), op, Box::new(rhs));
+        }
+        Ok(lhs)
+    }
+
+    fn parse_prefix(&mut self) -> Result<SimpleExpression, ParserError> {
+        let next_token = self.peek().ok_or_else(|| self.unexpected_eof_error())?;
+        if let TokenKind::Operator(op) = next_token.kind {
+            let rbp = match get_prefix_bp(op) {
+                Some(rbp) => rbp,
+                None => {
+                    return Err(ParserError {
+                        kind: ParserErrorKind::InvalidUnaryOperator,
+                        token: next_token.clone(),
+                    });
+                }
+            };
+
+            self.consume();
+            let rhs = self.parse_simple_expression_with_min_bp(rbp)?;
+            return Ok(SimpleExpression::UnaryOp(op, Box::new(rhs)));
+        }
+
+        let atom = self.parse_atom()?;
+        Ok(SimpleExpression::Atom(atom))
+    }
+
+    fn parse_atom(&mut self) -> Result<Atom, ParserError> {
+        let token = self.consume().ok_or_else(|| self.unexpected_eof_error())?;
+        let atom = match token.kind {
+            TokenKind::Number(num) => Atom::Literal(Literal::Number(num)),
+            TokenKind::String(str) => Atom::Literal(Literal::String(str)),
+            TokenKind::Bool(bool) => Atom::Literal(Literal::Bool(bool)),
+            TokenKind::Identifier(ident) => {
+                if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::LParen))) {
+                    self.position -= 1;
+                    return Ok(Atom::FunctionCall(self.parse_function_call()?));
+                }
+                Atom::Identifier(ident)
+            }
+            TokenKind::Delimiter(Delimiter::LParen) => {
+                let expr = self.parse_expression()?;
+                self.expect(
+                    |kind| matches!(kind, TokenKind::Delimiter(Delimiter::RParen)),
+                    Expected::ClosingDelimiter(Delimiter::RParen),
+                )?;
+                Atom::Parenthesized(Box::new(expr))
+            }
+            _ => {
+                return Err(ParserError {
+                    kind: ParserErrorKind::InvalidExpression,
+                    token,
+                });
+            }
+        };
+        Ok(atom)
+    }
+
+    fn parse_function_call(&mut self) -> Result<FunctionCall, ParserError> {
+        let name_token = self.expect(|kind| matches!(kind, TokenKind::Identifier(_)), Expected::Identifier)?;
+        let name = match name_token.kind {
+            TokenKind::Identifier(s) => s,
+            _ => unreachable!(),
+        };
+
+        self.expect(
+            |kind| matches!(kind, TokenKind::Delimiter(Delimiter::LParen)),
+            Expected::OpeningDelimiter(Delimiter::LParen),
+        )?;
+        let arguments = self.parse_expression_list()?;
+        self.expect(
+            |kind| matches!(kind, TokenKind::Delimiter(Delimiter::RParen)),
+            Expected::ClosingDelimiter(Delimiter::RParen),
+        )?;
+
+        Ok(FunctionCall { name, arguments })
+    }
+
+    fn parse_expression_list(&mut self) -> Result<ExpressionList, ParserError> {
+        let mut expressions = ExpressionList::new();
+        expressions.push(self.parse_expression()?);
+        while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Comma))) {
+            self.consume();
+            expressions.push(self.parse_expression()?);
+        }
+        Ok(expressions)
     }
 
     fn skip_newlines(&mut self) {
@@ -371,7 +504,7 @@ impl Parser {
 }
 
 type BindingPower = u8;
-fn get_binding_power(op: Operator) -> (BindingPower, BindingPower) {
+fn get_bp(op: Operator) -> (BindingPower, BindingPower) {
     use Operator::*;
     match op {
         Power => (100, 90),
@@ -383,7 +516,7 @@ fn get_binding_power(op: Operator) -> (BindingPower, BindingPower) {
     }
 }
 
-fn get_prefix_binding_power(op: Operator) -> Option<BindingPower> {
+fn get_prefix_bp(op: Operator) -> Option<BindingPower> {
     use Operator::*;
     match op {
         Minus => Some(79),
@@ -391,6 +524,6 @@ fn get_prefix_binding_power(op: Operator) -> Option<BindingPower> {
     }
 }
 
-fn get_function_call_binding_power() -> (u8, u8) {
+fn get_function_call_bp() -> (u8, u8) {
     (150, 149)
 }

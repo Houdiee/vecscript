@@ -45,10 +45,9 @@ pub struct Parameter {
 }
 pub type ParameterList = Vec<Parameter>;
 
-pub type WhereSuffix = Option<VariableBindingList>;
 #[derive(Debug)]
 pub enum Expression {
-    Simple(SimpleExpression, WhereSuffix),
+    Simple(SimpleExpression),
     LetIn {
         bindings: VariableBindingList,
         body: Box<Expression>,
@@ -63,8 +62,8 @@ pub enum Expression {
 #[derive(Debug)]
 pub enum SimpleExpression {
     Atom(Atom),
-    BinaryOp(Box<Expression>, Operator, Box<Expression>),
-    UnaryOp(Operator, Box<Expression>),
+    BinaryOp(Box<SimpleExpression>, Operator, Box<SimpleExpression>),
+    UnaryOp(Operator, Box<SimpleExpression>),
 }
 
 #[derive(Debug)]
@@ -72,7 +71,7 @@ pub enum Atom {
     Literal(Literal),
     Identifier(String),
     Parenthesized(Box<Expression>),
-    Call(FunctionCall),
+    FunctionCall(FunctionCall),
 }
 
 #[derive(Debug)]
