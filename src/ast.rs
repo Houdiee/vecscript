@@ -2,7 +2,17 @@ use crate::{parser::ParserError, token::*};
 
 #[derive(Debug)]
 pub struct Program {
-    pub statements: Vec<Result<Statement, ParserError>>,
+    pub definitions: Vec<Result<Definition, ParserError>>,
+}
+
+#[derive(Debug)]
+pub enum Definition {
+    Let(LetDefinition),
+}
+
+#[derive(Debug)]
+pub struct LetDefinition {
+    pub binding: Binding,
 }
 
 #[derive(Debug)]
@@ -13,46 +23,68 @@ pub enum Binding {
 
 #[derive(Debug)]
 pub struct VariableBinding {
-    pub var_name: String,
-    pub var_type: Option<Type>,
+    pub name: String,
+    pub var_type: TypeAnnotation,
     pub expr: Expression,
 }
+pub type TypeAnnotation = Option<Type>;
+pub type VariableBindingList = Vec<VariableBinding>;
 
 #[derive(Debug)]
 pub struct FunctionBinding {
     pub name: String,
-    pub params: Vec<FunctionParameter>,
-    pub return_type: Option<Type>,
+    pub params: Vec<Parameter>,
+    pub return_type: TypeAnnotation,
     pub body: Expression,
 }
 
 #[derive(Debug)]
-pub struct FunctionParameter {
+pub struct Parameter {
     pub name: String,
-    pub param_type: Option<Type>,
+    pub param_type: TypeAnnotation,
+}
+pub type ParameterList = Vec<Parameter>;
+
+pub type WhereSuffix = Option<VariableBindingList>;
+#[derive(Debug)]
+pub enum Expression {
+    Simple(SimpleExpression, WhereSuffix),
+    LetIn {
+        bindings: VariableBindingList,
+        body: Box<Expression>,
+    },
+    IfElse {
+        condition: Box<Expression>,
+        true_branch: Box<Expression>,
+        false_branch: Box<Expression>,
+    },
 }
 
 #[derive(Debug)]
-pub enum Expression {
+pub enum SimpleExpression {
+    Atom(Atom),
+    BinaryOp(Box<Expression>, Operator, Box<Expression>),
+    UnaryOp(Operator, Box<Expression>),
+}
+
+#[derive(Debug)]
+pub enum Atom {
+    Literal(Literal),
+    Identifier(String),
+    Parenthesized(Box<Expression>),
+    Call(FunctionCall),
+}
+
+#[derive(Debug)]
+pub enum Literal {
     Number(f64),
     String(String),
     Bool(bool),
-    Identifier(String),
-    BinaryOp(Box<Expression>, Operator, Box<Expression>),
-    UnaryOp(Operator, Box<Expression>),
-    FunctionCall {
-        function_expr: Box<Expression>,
-        arguments: Vec<Expression>,
-    },
 }
-
-pub type WhereClause = Vec<Binding>;
 
 #[derive(Debug)]
-pub enum Statement {
-    LetDeclaration {
-        binding: Binding,
-        where_clause: Option<WhereClause>,
-    },
-    Expression(Expression),
+pub struct FunctionCall {
+    pub name: String,
+    pub arguments: ExpressionList,
 }
+pub type ExpressionList = Vec<Expression>;

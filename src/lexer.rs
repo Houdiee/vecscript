@@ -100,9 +100,9 @@ impl<'src> Lexer<'src> {
             "let" => TokenKind::Keyword(Keyword::Let),
             "where" => TokenKind::Keyword(Keyword::Where),
             "in" => TokenKind::Keyword(Keyword::In),
-
-            // Type Constructors
-            "Set" => TokenKind::Keyword(Keyword::Set),
+            "if" => TokenKind::Keyword(Keyword::If),
+            "then" => TokenKind::Keyword(Keyword::Then),
+            "else" => TokenKind::Keyword(Keyword::Else),
 
             // Booleans
             "true" => TokenKind::Bool(true),
@@ -136,7 +136,17 @@ impl<'src> Lexer<'src> {
 
         let op_kind = match op {
             b'+' => Operator::Plus,
-            b'-' => Operator::Minus,
+            b'-' => {
+                if matches!(self.peek(), Some(b'>')) {
+                    self.consume();
+                    return Ok(Token {
+                        kind: TokenKind::Delimiter(Delimiter::Arrow),
+                        span: span_start..self.position,
+                    });
+                } else {
+                    Operator::Minus
+                }
+            }
             b'*' => Operator::Multiply,
             b'/' => Operator::Divide,
             b'^' => Operator::Power,
@@ -177,14 +187,7 @@ impl<'src> Lexer<'src> {
         })?;
 
         let delim_kind = match delim {
-            b':' => {
-                if matches!(self.peek(), Some(b':')) {
-                    self.consume();
-                    Delimiter::DoubleColon
-                } else {
-                    Delimiter::Colon
-                }
-            }
+            b':' => Delimiter::Colon,
             b',' => Delimiter::Comma,
             b'(' => Delimiter::LParen,
             b')' => Delimiter::RParen,

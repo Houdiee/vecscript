@@ -39,24 +39,25 @@ pub enum Keyword {
     Let,
     Where,
     In,
-
-    // Type constructors
-    Set,
+    If,
+    Then,
+    Else,
+    Type,
 }
 
 #[derive(Debug, Clone)]
 pub enum Delimiter {
-    Range,       // ..
-    DoubleColon, // ::
-    Colon,       // :
-    Comma,       // ,
-    LParen,      // (
-    RParen,      // )
-    LBrack,      // [
-    RBrack,      // ]
-    LBrace,      // {
-    RBrace,      // }
-    Pipe,        // |
+    Range,  // ..
+    Arrow,  // ->
+    Colon,  // :
+    Comma,  // ,
+    LParen, // (
+    RParen, // )
+    LBrack, // [
+    RBrack, // ]
+    LBrace, // {
+    RBrace, // }
+    Pipe,   // |
 }
 
 #[derive(Debug, Copy, Clone)]

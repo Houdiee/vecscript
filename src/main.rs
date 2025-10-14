@@ -14,7 +14,7 @@ fn main() {
 
     let mut parser = Parser::init(tokens);
     let program = parser.parse_program().unwrap();
-    for statement in program.statements {
-        println!("{:?}", statement);
+    for definition in program.definitions {
+        println!("{:?}", definition);
     }
 }
