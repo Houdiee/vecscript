@@ -1,7 +1,7 @@
 let x = 2
 
-
-let foo = a + b + c where
+let foo =
+  a + b + c where
 	c = 3 - d,
 	d = 8,
 	b = 2,
@@ -11,3 +11,4 @@ let double(n : Num) -> Num = 2n
 let sum(a : Num, b : Num) -> Num = a + b
 let a = sum(1, b)
 let hello = let a = 2, b = 3 in let c = a + b in a
+

@@ -8,10 +8,10 @@ LetDefinition ::= LET Binding ;
 
 Binding ::= VariableBinding | FunctionBinding ;
 
-VariableBinding ::= IDENTIFIER [ TypeAnnotation ] ASSIGN Expression ;
+VariableBinding ::= IDENTIFIER [ TypeAnnotation ] ASSIGN [ NEWLINE ] Expression ;
 VariableBindingList ::= VariableBinding { COMMA [ TERMINATE ] VariableBinding } ;
 
-FunctionBinding ::= IDENTIFIER LPAREN [ ParameterList ] RPAREN [ ReturnType ] ASSIGN Expression ;
+FunctionBinding ::= IDENTIFIER LPAREN [ ParameterList ] RPAREN [ ReturnType ] ASSIGN [ NEWLINE ] Expression ;
 Parameter ::= IDENTIFIER [ TypeAnnotation ] ;
 ParameterList ::= Parameter { COMMA Parameter } ;
 
@@ -39,6 +39,8 @@ Atom ::= NUMBER
 FUNCTIONCALL ::= IDENTIFIER LPAREN [ ExpressionList ] RPAREN ;
 ExpressionList ::= Expression { COMMA Expression } ;
 */
+
+// TODO If expressions with "is" comparisons and stuff
 
 use crate::{ast::*, token::*};
 
@@ -157,6 +159,7 @@ impl Parser {
 
         let var_type = self.parse_type_annotation()?;
         self.expect(|kind| matches!(kind, TokenKind::Assign), Expected::Assignment)?;
+        self.parse_optional_newline()?;
         let expr = self.parse_expression()?;
         Ok(VariableBinding { name, var_type, expr })
     }
@@ -190,6 +193,7 @@ impl Parser {
         )?;
         let return_type = self.parse_return_type()?;
         self.expect(|kind| matches!(kind, TokenKind::Assign), Expected::Assignment)?;
+        self.parse_optional_newline()?;
         let body = self.parse_expression()?;
 
         Ok(FunctionBinding {
@@ -316,11 +320,11 @@ impl Parser {
         if !matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::Where))) {
             return Ok(None);
         }
-        self.parse_optional_newline()?;
         self.expect(
             |kind| matches!(kind, TokenKind::Keyword(Keyword::Where)),
             Expected::Keyword(Keyword::Where),
         )?;
+        self.parse_optional_newline()?;
         let bindings = self.parse_variable_binding_list()?;
         Ok(Some(bindings))
     }
