@@ -1,16 +1,17 @@
 let sum = let x = 3, y = 2 in x + y
+
 let radius(r : Num) -> Num = pi * r^2 + k + u
-where
+where [
 	pi = 3.14 * a * b
-	where
+	where [
 		a = 1,
 		b = 2
-	end,
+	],
 	u = 14,
 	k = 3
-end
+]
 
-let complicated = let h = a where a = 2 end in 2 + h
+let complicated = let h = a where [ a = 2 ] in 2 + h
 
 let one_of =
 	let is_true = true in

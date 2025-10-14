@@ -346,12 +346,16 @@ impl Parser {
             |kind| matches!(kind, TokenKind::Keyword(Keyword::Where)),
             Expected::Keyword(Keyword::Where),
         )?;
+        self.expect(
+            |kind| matches!(kind, TokenKind::Delimiter(Delimiter::LBrack)),
+            Expected::OpeningDelimiter(Delimiter::LBrack),
+        )?;
         self.parse_optional_newline()?;
         let bindings = self.parse_variable_binding_list()?;
         self.parse_optional_newline()?;
         self.expect(
-            |kind| matches!(kind, TokenKind::Keyword(Keyword::End)),
-            Expected::Keyword(Keyword::End),
+            |kind| matches!(kind, TokenKind::Delimiter(Delimiter::RBrack)),
+            Expected::ClosingDelimiter(Delimiter::RBrack),
         )?;
         Ok(Some(bindings))
     }
