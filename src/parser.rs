@@ -339,6 +339,7 @@ impl Parser {
         )?;
         self.parse_optional_newline()?;
         let bindings = self.parse_variable_binding_list()?;
+        self.parse_optional_newline()?;
         self.expect(
             |kind| matches!(kind, TokenKind::Keyword(Keyword::End)),
             Expected::Keyword(Keyword::End),
