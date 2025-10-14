@@ -1,3 +1,1 @@
-let a = 1
-let main() = if a is 1 then "true" else "false"
-
+let radius(r : Num) -> Num = pi * r^2 where pi = 3.14 * a where a = 2

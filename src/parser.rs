@@ -40,7 +40,7 @@ FUNCTIONCALL ::= IDENTIFIER LPAREN [ ExpressionList ] RPAREN ;
 ExpressionList ::= Expression { COMMA Expression } ;
 */
 
-// TODO If expressions with "is" comparisons and stuff
+// TODO add custom type support
 
 use crate::{ast::*, token::*};
 
