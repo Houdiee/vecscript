@@ -26,7 +26,7 @@ Expression ::= SimpleExpression [ WhereSuffix ]
 SimpleExpression ::= [ OPERATOR ] Atom { OPERATOR Atom } ;
 WhereSuffix ::= [ NEWLINE ] WHERE [ NEWLINE ] VariableBindingList [ NEWLINE ] END ;
 LetInExpression ::= LET VariableBindingList IN Expression ;
-IfElseExpression ::= IF Expression THEN Expression ELSE Expression ;
+IfElseExpression ::= IF Expression [ NEWLINE ] THEN Expression [ NEWLINE ] ELSE Expression ;
 
 Atom ::= NUMBER
        | STRING
@@ -296,6 +296,7 @@ impl Parser {
             |kind| matches!(kind, TokenKind::Keyword(Keyword::In)),
             Expected::Keyword(Keyword::In),
         )?;
+        self.parse_optional_newline()?;
         let body = self.parse_expression()?;
         Ok(Expression::LetIn {
             bindings,
@@ -309,18 +310,21 @@ impl Parser {
             Expected::Keyword(Keyword::If),
         )?;
         let condition = self.parse_expression()?;
+        self.parse_optional_newline()?;
 
         self.expect(
             |kind| matches!(kind, TokenKind::Keyword(Keyword::Then)),
             Expected::Keyword(Keyword::Then),
         )?;
         let true_branch = self.parse_expression()?;
+        self.parse_optional_newline()?;
 
         self.expect(
             |kind| matches!(kind, TokenKind::Keyword(Keyword::Else)),
             Expected::Keyword(Keyword::Else),
         )?;
         let false_branch = self.parse_expression()?;
+        self.parse_optional_newline()?;
 
         Ok(Expression::IfElse {
             condition: Box::new(condition),
