@@ -9,7 +9,7 @@ LetDefinition ::= LET Binding ;
 Binding ::= VariableBinding | FunctionBinding ;
 
 VariableBinding ::= IDENTIFIER [ TypeAnnotation ] ASSIGN [ NEWLINE ] Expression ;
-VariableBindingList ::= VariableBinding { COMMA [ TERMINATE ] VariableBinding } ;
+VariableBindingList ::= VariableBinding { COMMA [ NEWLINE ] VariableBinding [ COMMA ] } ;
 
 FunctionBinding ::= IDENTIFIER LPAREN [ ParameterList ] RPAREN [ ReturnType ] ASSIGN [ NEWLINE ] Expression ;
 Parameter ::= IDENTIFIER [ TypeAnnotation ] ;
@@ -24,7 +24,7 @@ Expression ::= SimpleExpression [ WhereSuffix ]
              ;
 
 SimpleExpression ::= [ OPERATOR ] Atom { OPERATOR Atom } ;
-WhereSuffix ::= WHERE [ NEWLINE ] VariableBindingList ;
+WhereSuffix ::= [ NEWLINE ] WHERE [ NEWLINE ] VariableBindingList END ;
 LetInExpression ::= LET VariableBindingList IN Expression ;
 IfElseExpression ::= IF Expression THEN Expression ELSE Expression ;
 
@@ -65,7 +65,6 @@ pub enum Expected {
     ClosingDelimiter(Delimiter),
     OpeningDelimiter(Delimiter),
     Keyword(Keyword),
-    KeywordIn,
     VariableName,
     TypeAnnotation,
     Type,
@@ -168,11 +167,20 @@ impl Parser {
     fn parse_variable_binding_list(&mut self) -> Result<VariableBindingList, ParserError> {
         let mut bindings = VariableBindingList::new();
         bindings.push(self.parse_variable_binding()?);
-        while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Comma))) {
+
+        loop {
+            if !matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Comma))) {
+                break;
+            }
             self.consume();
             self.parse_optional_newline()?;
+
+            if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::End))) {
+                break;
+            }
             bindings.push(self.parse_variable_binding()?);
         }
+
         Ok(bindings)
     }
 
@@ -331,6 +339,10 @@ impl Parser {
         )?;
         self.parse_optional_newline()?;
         let bindings = self.parse_variable_binding_list()?;
+        self.expect(
+            |kind| matches!(kind, TokenKind::Keyword(Keyword::End)),
+            Expected::Keyword(Keyword::End),
+        )?;
         Ok(Some(bindings))
     }
 

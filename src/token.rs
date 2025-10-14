@@ -42,6 +42,7 @@ pub enum Keyword {
     If,
     Then,
     Else,
+    End,
     Type,
 }
 
