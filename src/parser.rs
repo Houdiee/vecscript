@@ -105,10 +105,11 @@ impl Parser {
     }
 
     fn parse_definition(&mut self) -> Result<Definition, ParserError> {
-        let next_token = self.peek().ok_or_else(|| self.unexpected_eof_error())?;
+        let next_token = self.peek().ok_or_else(|| self.unexpected_eof_error())?.to_owned();
         let definition = match next_token.kind {
             TokenKind::Keyword(Keyword::Let) => Definition::Let(self.parse_let_definition()?),
             _ => {
+                self.consume();
                 return Err(ParserError {
                     kind: ParserErrorKind::UnexpectedToken {
                         expected: Expected::Definition,
@@ -165,6 +166,7 @@ impl Parser {
         bindings.push(self.parse_variable_binding()?);
         while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Comma))) {
             self.consume();
+            self.parse_optional_newline()?;
             bindings.push(self.parse_variable_binding()?);
         }
         Ok(bindings)
@@ -314,6 +316,7 @@ impl Parser {
         if !matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::Where))) {
             return Ok(None);
         }
+        self.parse_optional_newline()?;
         self.expect(
             |kind| matches!(kind, TokenKind::Keyword(Keyword::Where)),
             Expected::Keyword(Keyword::Where),
@@ -335,8 +338,23 @@ impl Parser {
                 None => break,
             };
 
-            let op = match next_token.kind {
-                TokenKind::Operator(op) => op,
+            let is_implicit_multiplication = || {
+                matches!(lhs, SimpleExpression::Atom(Atom::Literal(Literal::Number(_))))
+                    && matches!(next_token.kind, TokenKind::Identifier(_))
+            };
+
+            if is_implicit_multiplication() {
+                let (lbp, rbp) = get_bp(Operator::Multiply);
+                if lbp < min_bp {
+                    break;
+                }
+                let rhs = self.parse_simple_expression_with_min_bp(rbp)?;
+                lhs = SimpleExpression::BinaryOp(Box::new(lhs), Operator::Multiply, Box::new(rhs));
+                continue;
+            }
+
+            let op = match &next_token.kind {
+                TokenKind::Operator(op) => *op,
                 _ => break,
             };
 
@@ -377,19 +395,30 @@ impl Parser {
     }
 
     fn parse_atom(&mut self) -> Result<Atom, ParserError> {
-        let token = self.consume().ok_or_else(|| self.unexpected_eof_error())?;
+        let token = self.peek().ok_or_else(|| self.unexpected_eof_error())?.to_owned();
+
         let atom = match token.kind {
-            TokenKind::Number(num) => Atom::Literal(Literal::Number(num)),
-            TokenKind::String(str) => Atom::Literal(Literal::String(str)),
-            TokenKind::Bool(bool) => Atom::Literal(Literal::Bool(bool)),
             TokenKind::Identifier(ident) => {
-                if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::LParen))) {
-                    self.position -= 1;
+                if matches!(self.peek_nth(1).map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::LParen))) {
                     return Ok(Atom::FunctionCall(self.parse_function_call()?));
                 }
-                Atom::Identifier(ident)
+                self.consume();
+                Atom::Identifier(ident.clone())
+            }
+            TokenKind::Number(num) => {
+                self.consume();
+                Atom::Literal(Literal::Number(num))
+            }
+            TokenKind::String(str) => {
+                self.consume();
+                Atom::Literal(Literal::String(str.clone()))
+            }
+            TokenKind::Bool(bool) => {
+                self.consume();
+                Atom::Literal(Literal::Bool(bool))
             }
             TokenKind::Delimiter(Delimiter::LParen) => {
+                self.consume();
                 let expr = self.parse_expression()?;
                 self.expect(
                     |kind| matches!(kind, TokenKind::Delimiter(Delimiter::RParen)),
@@ -398,9 +427,10 @@ impl Parser {
                 Atom::Parenthesized(Box::new(expr))
             }
             _ => {
+                let consumed_token = self.consume().ok_or_else(|| self.unexpected_eof_error())?;
                 return Err(ParserError {
                     kind: ParserErrorKind::InvalidExpression,
-                    token,
+                    token: consumed_token,
                 });
             }
         };
