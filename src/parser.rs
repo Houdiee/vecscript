@@ -206,6 +206,10 @@ impl Parser {
 
     fn parse_parameter_list(&mut self) -> Result<ParameterList, ParserError> {
         let mut params = ParameterList::new();
+        if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::RParen))) {
+            return Ok(params);
+        }
+
         params.push(self.parse_parameter()?);
         while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Comma))) {
             self.consume();
