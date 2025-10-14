@@ -1,1 +1,5 @@
-let radius(r : Num) -> Num = pi * r^2 where pi = 3.14 * a where a = 2
+let radius(r : Num) -> Num =
+	pi * r^2 where
+		pi = 3.14 * a * b where
+		 a = 2c where c = 0,
+		 b = 1

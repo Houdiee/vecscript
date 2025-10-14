@@ -41,6 +41,7 @@ ExpressionList ::= Expression { COMMA Expression } ;
 */
 
 // TODO add custom type support
+// FIX nested where suffix AST output
 
 use crate::{ast::*, token::*};
 
@@ -435,10 +436,9 @@ impl Parser {
                 Atom::Parenthesized(Box::new(expr))
             }
             _ => {
-                let consumed_token = self.consume().ok_or_else(|| self.unexpected_eof_error())?;
                 return Err(ParserError {
                     kind: ParserErrorKind::InvalidExpression,
-                    token: consumed_token,
+                    token,
                 });
             }
         };
