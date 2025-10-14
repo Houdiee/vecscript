@@ -1,6 +1,6 @@
-let sume = let x = 3, y = 2 in x + y
-
-let radius(r : Num) -> Num = pi * r^2 + k + u where
+let sum = let x = 3, y = 2 in x + y
+let radius(r : Num) -> Num = pi * r^2 + k + u
+where
 	pi = 3.14 * a * b where
 		a = 1,
 		b = 2

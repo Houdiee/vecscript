@@ -9,7 +9,7 @@ LetDefinition ::= LET Binding ;
 Binding ::= VariableBinding | FunctionBinding ;
 
 VariableBinding ::= IDENTIFIER [ TypeAnnotation ] ASSIGN [ NEWLINE ] Expression ;
-VariableBindingList ::= VariableBinding { COMMA [ NEWLINE ] VariableBinding [ COMMA ] } ;
+VariableBindingList ::= VariableBinding { COMMA [ NEWLINE ] VariableBinding  ;
 
 FunctionBinding ::= IDENTIFIER LPAREN [ ParameterList ] RPAREN [ ReturnType ] ASSIGN [ NEWLINE ] Expression ;
 Parameter ::= IDENTIFIER [ TypeAnnotation ] ;
@@ -24,7 +24,7 @@ Expression ::= SimpleExpression [ WhereSuffix ]
              ;
 
 SimpleExpression ::= [ OPERATOR ] Atom { OPERATOR Atom } ;
-WhereSuffix ::= [ NEWLINE ] WHERE [ NEWLINE ] VariableBindingList END ;
+WhereSuffix ::= [ NEWLINE ] WHERE [ NEWLINE ] VariableBindingList [ NEWLINE ] END ;
 LetInExpression ::= LET VariableBindingList IN Expression ;
 IfElseExpression ::= IF Expression THEN Expression ELSE Expression ;
 
@@ -41,7 +41,7 @@ ExpressionList ::= Expression { COMMA Expression } ;
 */
 
 // TODO add custom type support
-// FIX nested where suffix AST output
+// TODO make END keyword optional for very simple where cases
 
 use crate::{ast::*, token::*};
 
@@ -330,6 +330,11 @@ impl Parser {
     }
 
     fn parse_where_suffix(&mut self) -> Result<Option<VariableBindingList>, ParserError> {
+        if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Newline))
+            && matches!(self.peek_nth(1).map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::Where)))
+        {
+            self.parse_optional_newline()?;
+        }
         if !matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::Where))) {
             return Ok(None);
         }
