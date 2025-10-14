@@ -24,7 +24,7 @@ Expression ::= SimpleExpression [ WhereSuffix ]
              ;
 
 SimpleExpression ::= [ OPERATOR ] Atom { OPERATOR Atom } ;
-WhereSuffix ::= WHERE [ TERMINATE ] VariableBindingList ;
+WhereSuffix ::= WHERE [ NEWLINE ] VariableBindingList ;
 LetInExpression ::= LET VariableBindingList IN Expression ;
 IfElseExpression ::= IF Expression THEN Expression ELSE Expression ;
 
@@ -61,7 +61,8 @@ pub enum ParserErrorKind {
 pub enum Expected {
     ClosingDelimiter(Delimiter),
     OpeningDelimiter(Delimiter),
-    KeywordLet,
+    Keyword(Keyword),
+    KeywordIn,
     VariableName,
     TypeAnnotation,
     Type,
@@ -120,7 +121,10 @@ impl Parser {
     }
 
     fn parse_let_definition(&mut self) -> Result<LetDefinition, ParserError> {
-        self.expect(|kind| matches!(kind, TokenKind::Keyword(Keyword::Let)), Expected::KeywordLet)?;
+        self.expect(
+            |kind| matches!(kind, TokenKind::Keyword(Keyword::Let)),
+            Expected::Keyword(Keyword::Let),
+        )?;
         let binding = self.parse_binding()?;
         Ok(LetDefinition { binding })
     }
@@ -153,6 +157,16 @@ impl Parser {
         self.expect(|kind| matches!(kind, TokenKind::Assign), Expected::Assignment)?;
         let expr = self.parse_expression()?;
         Ok(VariableBinding { name, var_type, expr })
+    }
+
+    fn parse_variable_binding_list(&mut self) -> Result<VariableBindingList, ParserError> {
+        let mut bindings = VariableBindingList::new();
+        bindings.push(self.parse_variable_binding()?);
+        while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Comma))) {
+            self.consume();
+            bindings.push(self.parse_variable_binding()?);
+        }
+        Ok(bindings)
     }
 
     fn parse_function_binding(&mut self) -> Result<FunctionBinding, ParserError> {
@@ -244,11 +258,46 @@ impl Parser {
     }
 
     fn parse_let_in_expression(&mut self) -> Result<Expression, ParserError> {
-        todo!()
+        self.expect(
+            |kind| matches!(kind, TokenKind::Keyword(Keyword::Let)),
+            Expected::Keyword(Keyword::Let),
+        )?;
+        let bindings = self.parse_variable_binding_list()?;
+        self.expect(
+            |kind| matches!(kind, TokenKind::Keyword(Keyword::In)),
+            Expected::Keyword(Keyword::In),
+        )?;
+        let body = self.parse_expression()?;
+        Ok(Expression::LetIn {
+            bindings,
+            body: Box::new(body),
+        })
     }
 
     fn parse_if_else_expression(&mut self) -> Result<Expression, ParserError> {
-        todo!()
+        self.expect(
+            |kind| matches!(kind, TokenKind::Keyword(Keyword::If)),
+            Expected::Keyword(Keyword::If),
+        )?;
+        let condition = self.parse_expression()?;
+
+        self.expect(
+            |kind| matches!(kind, TokenKind::Keyword(Keyword::Then)),
+            Expected::Keyword(Keyword::Then),
+        )?;
+        let true_branch = self.parse_expression()?;
+
+        self.expect(
+            |kind| matches!(kind, TokenKind::Keyword(Keyword::Else)),
+            Expected::Keyword(Keyword::Else),
+        )?;
+        let false_branch = self.parse_expression()?;
+
+        Ok(Expression::IfElse {
+            condition: Box::new(condition),
+            true_branch: Box::new(true_branch),
+            false_branch: Box::new(false_branch),
+        })
     }
 
     fn parse_simple_expression(&mut self) -> Result<Expression, ParserError> {
