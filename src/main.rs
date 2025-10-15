@@ -16,13 +16,11 @@ fn main() {
     let (tokens, lexer_errors) = lexer.lex();
     if !lexer_errors.is_empty() {
         print_errors(&file_name, &source, lexer_errors);
-        return;
     }
 
     let mut parser = Parser::new(tokens);
     let (program, parser_errors) = parser.parse();
     if !parser_errors.is_empty() {
         print_errors(&file_name, &source, parser_errors);
-        return;
     }
 }

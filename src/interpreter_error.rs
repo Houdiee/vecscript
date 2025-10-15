@@ -55,7 +55,7 @@ impl InterpreterError {
 
                 report = report.with_label(
                     Label::new((file_name, expected_span))
-                        .with_message(format!("Expected: {}", expected))
+                        .with_message(format!("Expected {}", expected))
                         .with_color(Color::Green),
                 );
             }
