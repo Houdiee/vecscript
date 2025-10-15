@@ -1,12 +1,12 @@
 use std::{fmt::Display, ops::Range};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LexerError {
     pub kind: LexerErrorKind,
     pub span: Range<usize>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum LexerErrorKind {
     InvalidAscii,
     InvalidCharacter,

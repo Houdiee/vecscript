@@ -1,13 +1,13 @@
 use crate::token::{Token, *};
 use std::fmt::{self, Display};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ParserError {
     pub kind: ParserErrorKind,
     pub token: Token,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ParserErrorKind {
     UnexpectedToken { expected: Expected },
     UnexpectedEOF,
@@ -16,7 +16,7 @@ pub enum ParserErrorKind {
     InvalidToken,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expected {
     ClosingDelimiter(Delimiter),
     OpeningDelimiter(Delimiter),
@@ -37,9 +37,9 @@ impl Display for Expected {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Expected::*;
         match self {
-            ClosingDelimiter(delim) => write!(f, "closing delimiter '{:?}'", delim),
-            OpeningDelimiter(delim) => write!(f, "opening delimiter '{:?}'", delim),
-            Keyword(keyword) => write!(f, "keyword '{:?}'", keyword),
+            ClosingDelimiter(delim) => write!(f, "closing delimiter '{}'", delim),
+            OpeningDelimiter(delim) => write!(f, "opening delimiter '{}'", delim),
+            Keyword(keyword) => write!(f, "keyword '{}'", keyword),
             VariableName => write!(f, "a variable name"),
             TypeAnnotation => write!(f, "a type annotation (starting with ':')"),
             Type => write!(f, "a type identifier (e.g., 'Num', 'Str')"),

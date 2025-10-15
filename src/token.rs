@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{fmt::Display, ops::Range};
 
 #[derive(Debug, Clone)]
 pub struct Token {
@@ -77,4 +77,39 @@ pub enum Operator {
     Divide,           // /
     Power,            // ^
     Modulo,           // %
+}
+
+impl Display for Delimiter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use Delimiter::*;
+        match self {
+            Range => write!(f, ".."),
+            Arrow => write!(f, "->"),
+            Colon => write!(f, ":"),
+            Comma => write!(f, ","),
+            LParen => write!(f, "("),
+            RParen => write!(f, ")"),
+            LBrack => write!(f, "["),
+            RBrack => write!(f, "]"),
+            LBrace => write!(f, "{{"),
+            RBrace => write!(f, "}}"),
+            Pipe => write!(f, "|"),
+        }
+    }
+}
+
+impl Display for Keyword {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use Keyword::*;
+        match self {
+            Let => write!(f, "let"),
+            Where => write!(f, "where"),
+            In => write!(f, "in"),
+            If => write!(f, "if"),
+            Then => write!(f, "then"),
+            Else => write!(f, "else"),
+            End => write!(f, "end"),
+            Type => write!(f, "type"),
+        }
+    }
 }
