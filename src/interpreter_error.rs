@@ -2,7 +2,7 @@ use crate::{
     lexer_error::LexerError,
     parser_error::{ParserError, ParserErrorKind},
 };
-use ariadne::{Color, Label, Report, ReportKind, Source};
+use ariadne::{Color, Config, Label, Report, ReportKind, Source};
 use std::ops::Range;
 
 #[derive(Debug, Clone)]
@@ -30,14 +30,17 @@ impl InterpreterError {
     }
 
     pub fn build_report<'a>(&self, file_name: &'a str) -> Report<'_, (&'a str, Range<usize>)> {
+        let config = Config::default().with_index_type(ariadne::IndexType::Byte);
+
         let (error_span, primary_message) = self.primary_info();
         let (report_kind, report_message) = match self {
             InterpreterError::Lexer(_) => (ReportKind::Error, "Lexing Error"),
             InterpreterError::Parser(_) => (ReportKind::Error, "Parsing Error"),
         };
 
-        let mut report =
-            Report::build(report_kind, (file_name, error_span.clone())).with_message(format!("{}: {}", report_message, primary_message));
+        let mut report = Report::build(report_kind, (file_name, error_span.clone()))
+            .with_config(config)
+            .with_message(format!("{}: {}", report_message, primary_message));
 
         report = report.with_label(
             Label::new((file_name, error_span.clone()))
