@@ -57,27 +57,18 @@ impl Display for Expected {
 impl Display for ParserError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let token_kind_str = format!("{:?}", self.token.kind);
-        let token_span = &self.token.span;
 
         match &self.kind {
             ParserErrorKind::UnexpectedToken { expected } => {
-                write!(
-                    f,
-                    "Syntax Error: Expected {} but found {} (at byte {}..{})",
-                    expected, token_kind_str, token_span.start, token_span.end
-                )
+                write!(f, "Syntax Error: Expected {} but found {}", expected, token_kind_str)
             }
             ParserErrorKind::UnexpectedEOF => {
-                write!(f, "Syntax Error: Unexpected End of File.")
+                write!(f, "Syntax Error: Unexpected End of File")
             }
             ParserErrorKind::InvalidExpression => {
-                write!(
-                    f,
-                    "Syntax Error: Invalid expression starting with {} (at byte {}..{})",
-                    token_kind_str, token_span.start, token_span.end
-                )
+                write!(f, "Syntax Error: Invalid expression starting with {}", token_kind_str,)
             }
-            _ => write!(f, "Parser Error: {:?} at byte {}..{}", self.kind, token_span.start, token_span.end),
+            _ => write!(f, "Parser Error: {:?}", self.kind),
         }
     }
 }

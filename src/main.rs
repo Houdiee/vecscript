@@ -10,10 +10,11 @@ pub mod token;
 
 fn main() {
     let file_name = "example";
-    let source = std::fs::read_to_string(&file_name).unwrap();
+    let source = std::fs::read_to_string(&file_name).expect("Failed to read file");
 
-    let mut lexer = Lexer::init(&source).expect("Failed to initialize lexer.");
+    let mut lexer = Lexer::init(&source).expect("Failed to initialize lexer");
     let (tokens, lexer_errors) = lexer.lex();
+
     let mut parser = Parser::init(tokens);
     let (program, parser_errors) = parser.parse();
 }
