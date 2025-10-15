@@ -12,21 +12,14 @@ fn main() {
     let file_name = "example";
     let source = std::fs::read_to_string(&file_name).expect("Failed to read file");
 
-    let mut lexer = match Lexer::init(&source) {
-        Ok(lexer) => lexer,
-        Err(error) => {
-            print_errors(&file_name, &source, [error]);
-            return;
-        }
-    };
-
+    let mut lexer = Lexer::new(&source);
     let (tokens, lexer_errors) = lexer.lex();
     if !lexer_errors.is_empty() {
         print_errors(&file_name, &source, lexer_errors);
         return;
     }
 
-    let mut parser = Parser::init(tokens);
+    let mut parser = Parser::new(tokens);
     let (program, parser_errors) = parser.parse();
     if !parser_errors.is_empty() {
         print_errors(&file_name, &source, parser_errors);

@@ -33,6 +33,19 @@ impl<'src> Iterator for Lexer<'src> {
 
             b'\n' => self.newline(span_start),
 
+            _ if !current.is_ascii() => {
+                while let Some(char) = self.peek()
+                    && !char.is_ascii()
+                {
+                    self.consume();
+                }
+
+                Err(LexerError {
+                    kind: LexerErrorKind::InvalidAscii,
+                    span: span_start..self.position,
+                })
+            }
+
             _ => {
                 self.consume();
                 Err(LexerError {
@@ -46,20 +59,13 @@ impl<'src> Iterator for Lexer<'src> {
 }
 
 impl<'src> Lexer<'src> {
-    pub fn init(source: &'src str) -> Result<Self, LexerError> {
+    pub fn new(source: &'src str) -> Self {
         let source = source.as_bytes();
-        if let Some(invalid_ascii_pos) = source.iter().position(|byte| !byte.is_ascii()) {
-            return Err(LexerError {
-                kind: LexerErrorKind::InvalidAscii,
-                span: invalid_ascii_pos..invalid_ascii_pos + 1,
-            });
-        }
-
-        Ok(Self {
+        Self {
             source,
             position: 0,
             errors: Vec::new(),
-        })
+        }
     }
 
     pub fn lex(&mut self) -> (Vec<Token>, &Vec<LexerError>) {

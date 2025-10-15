@@ -72,7 +72,7 @@ impl Iterator for Parser {
 }
 
 impl Parser {
-    pub fn init(tokens: Vec<Token>) -> Self {
+    pub fn new(tokens: Vec<Token>) -> Self {
         Self {
             tokens,
             position: 0,

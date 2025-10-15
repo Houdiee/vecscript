@@ -24,7 +24,6 @@ pub enum TokenKind {
 #[derive(Debug, Clone)]
 pub enum Type {
     BaseType(BaseType),
-    Set(BaseType),
 }
 
 #[derive(Debug, Clone)]
@@ -92,8 +91,6 @@ impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::BaseType(b) => write!(f, "{}", b),
-            // Example: set(num)
-            Type::Set(b) => write!(f, "set({})", b),
         }
     }
 }
