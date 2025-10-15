@@ -1,4 +1,4 @@
-use crate::token::*;
+use crate::{parser::ParserError, token::*};
 use std::{ops::Range, str};
 
 #[derive(Debug)]
@@ -19,6 +19,7 @@ pub enum LexerErrorKind {
 pub struct Lexer<'src> {
     source: &'src [u8],
     position: usize,
+    errors: Vec<LexerError>,
 }
 
 impl<'src> Iterator for Lexer<'src> {
@@ -66,15 +67,30 @@ impl<'src> Lexer<'src> {
             });
         }
 
-        Ok(Self { source, position: 0 })
+        Ok(Self {
+            source,
+            position: 0,
+            errors: Vec::new(),
+        })
     }
 
-    pub fn lex(&mut self) -> Vec<Result<Token, LexerError>> {
+    pub fn lex(&mut self) -> (Vec<Token>, &Vec<LexerError>) {
+        (self.tokens(), self.errors())
+    }
+
+    pub fn tokens(&mut self) -> Vec<Token> {
         let mut tokens = Vec::new();
         while let Some(token_result) = self.next() {
-            tokens.push(token_result);
+            match token_result {
+                Ok(token) => tokens.push(token),
+                Err(e) => self.errors.push(e),
+            }
         }
         return tokens;
+    }
+
+    pub fn errors(&self) -> &Vec<LexerError> {
+        return &self.errors;
     }
 
     fn word(&mut self, span_start: usize) -> Result<Token, LexerError> {
