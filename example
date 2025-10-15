@@ -1,19 +1,15 @@
 let sum = let x = 3, y = 2 in x + y
 
-let radius(r : Num) -> Num = pi * r^2 + k + u
+let area(r : Num) -> Num = pi * r^2 + k + u
 where [
-	pi = 3.14 * a * b
-	where [
-		a = 1,
-		b = 2
-	],
+	pi = 3.14 * a * b where [ a = 1, b = 2 ],
 	u = 14,
-	k = 3
+	k = 
 ]
 
+let circle_area = area(3
 let complicated = let h = a where [ a = 2 ] in 2 + h
 
 let one_of =
 	let is_true = true in
-	 if is_true then "hello" else "bad"
-
+	in if is_true then "hello" else "bad"

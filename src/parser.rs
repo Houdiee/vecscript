@@ -41,7 +41,6 @@ ExpressionList ::= Expression { COMMA Expression } ;
 */
 
 // TODO add custom type support
-// TODO make END keyword optional for very simple where cases
 
 use crate::{ast::*, token::*};
 
@@ -88,8 +87,14 @@ impl Iterator for Parser {
     fn next(&mut self) -> Option<Self::Item> {
         self.skip_newlines();
         self.peek()?;
-        let result = self.parse_definition();
-        Some(result)
+
+        match self.parse_definition() {
+            Ok(definition) => Some(Ok(definition)),
+            Err(e) => {
+                self.synchronize();
+                Some(Err(e))
+            }
+        }
     }
 }
 
@@ -104,6 +109,20 @@ impl Parser {
             definitions.push(definition);
         }
         Ok(Program { definitions })
+    }
+
+    fn synchronize(&mut self) {
+        while let Some(current) = self.peek() {
+            if matches!(&current.kind, TokenKind::Keyword(Keyword::Let)) {
+                return;
+            }
+
+            if matches!(&current.kind, TokenKind::Newline) {
+                self.consume();
+                return;
+            }
+            self.consume();
+        }
     }
 
     fn parse_definition(&mut self) -> Result<Definition, ParserError> {
@@ -515,7 +534,9 @@ impl Parser {
     }
 
     fn parse_terminator(&mut self) -> Result<(), ParserError> {
-        self.expect(|kind| matches!(kind, TokenKind::Newline), Expected::Terminator)?;
+        if self.peek().is_some() {
+            self.expect(|kind| matches!(kind, TokenKind::Newline), Expected::Terminator)?;
+        }
         Ok(())
     }
 
