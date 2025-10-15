@@ -1,8 +1,8 @@
-use crate::{parser::ParserError, token::*};
+use crate::token::*;
 
 #[derive(Debug)]
 pub struct Program {
-    pub definitions: Vec<Result<Definition, ParserError>>,
+    pub definitions: Vec<Definition>,
 }
 
 #[derive(Debug)]

@@ -42,44 +42,17 @@ ExpressionList ::= Expression { COMMA Expression } ;
 
 // TODO add custom type support
 
-use crate::{ast::*, token::*};
-
-#[derive(Debug)]
-pub struct ParserError {
-    pub kind: ParserErrorKind,
-    pub token: Token,
-}
-
-#[derive(Debug)]
-pub enum ParserErrorKind {
-    UnexpectedToken { expected: Expected },
-    UnexpectedEOF,
-    InvalidExpression,
-    InvalidUnaryOperator,
-    InvalidToken,
-}
-
-#[derive(Debug)]
-pub enum Expected {
-    ClosingDelimiter(Delimiter),
-    OpeningDelimiter(Delimiter),
-    Keyword(Keyword),
-    VariableName,
-    TypeAnnotation,
-    Type,
-    Assignment,
-    Terminator,
-    FunctionParameter,
-    Identifier,
-    Binding,
-    ReturnType,
-    Definition,
-}
+use crate::{
+    ast::*,
+    parser_error::{Expected, ParserError, ParserErrorKind},
+    token::*,
+};
 
 #[derive(Debug)]
 pub struct Parser {
     tokens: Vec<Token>,
     position: usize,
+    errors: Vec<ParserError>,
 }
 
 impl Iterator for Parser {
@@ -100,15 +73,30 @@ impl Iterator for Parser {
 
 impl Parser {
     pub fn init(tokens: Vec<Token>) -> Self {
-        Self { tokens, position: 0 }
+        Self {
+            tokens,
+            position: 0,
+            errors: Vec::new(),
+        }
     }
 
-    pub fn parse_program(&mut self) -> Result<Program, ParserError> {
+    pub fn parse(&mut self) -> (Program, &Vec<ParserError>) {
+        (self.parse_program(), self.errors())
+    }
+
+    pub fn parse_program(&mut self) -> Program {
         let mut definitions = Vec::new();
         while let Some(definition) = self.next() {
-            definitions.push(definition);
+            match definition {
+                Ok(value) => definitions.push(value),
+                Err(e) => self.errors.push(e),
+            }
         }
-        Ok(Program { definitions })
+        Program { definitions }
+    }
+
+    pub fn errors(&mut self) -> &Vec<ParserError> {
+        return &self.errors;
     }
 
     fn synchronize(&mut self) {
@@ -429,7 +417,7 @@ impl Parser {
     fn parse_prefix(&mut self) -> Result<SimpleExpression, ParserError> {
         let next_token = self.peek().ok_or_else(|| self.unexpected_eof_error())?;
         if let TokenKind::Operator(op) = next_token.kind {
-            let rbp = match get_prefix_bp(op) {
+            let rbp = match get_unary_bp(op) {
                 Some(rbp) => rbp,
                 None => {
                     return Err(ParserError {
@@ -601,14 +589,10 @@ fn get_bp(op: Operator) -> (BindingPower, BindingPower) {
     }
 }
 
-fn get_prefix_bp(op: Operator) -> Option<BindingPower> {
+fn get_unary_bp(op: Operator) -> Option<BindingPower> {
     use Operator::*;
     match op {
         Minus => Some(79),
         _ => None,
     }
-}
-
-fn get_function_call_bp() -> (u8, u8) {
-    (150, 149)
 }

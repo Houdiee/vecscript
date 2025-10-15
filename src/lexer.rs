@@ -1,20 +1,8 @@
-use crate::{parser::ParserError, token::*};
-use std::{ops::Range, str};
-
-#[derive(Debug)]
-pub struct LexerError {
-    pub kind: LexerErrorKind,
-    pub span: Range<usize>,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum LexerErrorKind {
-    InvalidAscii,
-    InvalidCharacter,
-    InvalidNumber,
-    UnterminatedString,
-    UnexpectedEOF,
-}
+use crate::{
+    lexer_error::{LexerError, LexerErrorKind},
+    token::*,
+};
+use std::str;
 
 pub struct Lexer<'src> {
     source: &'src [u8],
