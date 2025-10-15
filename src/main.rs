@@ -1,8 +1,4 @@
-use crate::{
-    interpreter_error::{Diagnostic, InterpreterError},
-    lexer::Lexer,
-    parser::Parser,
-};
+use crate::{interpreter_error::print_errors, lexer::Lexer, parser::Parser};
 
 pub mod ast;
 pub mod interpreter_error;
@@ -19,39 +15,22 @@ fn main() {
     let mut lexer = match Lexer::init(&source) {
         Ok(lexer) => lexer,
         Err(error) => {
-            let diagnostic = Diagnostic {
-                file_name: file_name.to_string(),
-                source: source.clone(),
-                error: InterpreterError::Lexer(error),
-            };
-            diagnostic.print_report();
+            print_errors(&file_name, &source, [error]);
             return;
         }
     };
 
     let (tokens, lexer_errors) = lexer.lex();
-
     if !lexer_errors.is_empty() {
-        for error in lexer_errors {
-            let diagnostic = Diagnostic {
-                file_name: file_name.to_string(),
-                source: source.clone(),
-                error: InterpreterError::Lexer(error.clone()),
-            };
-            diagnostic.print_report();
-        }
+        print_errors(&file_name, &source, lexer_errors);
+        return;
     }
+
     let mut parser = Parser::init(tokens);
-    let (_program, parser_errors) = parser.parse();
+    let (program, parser_errors) = parser.parse();
 
     if !parser_errors.is_empty() {
-        for error in parser_errors {
-            let diagnostic = Diagnostic {
-                file_name: file_name.to_string(),
-                source: source.clone(),
-                error: InterpreterError::Parser(error.clone()),
-            };
-            diagnostic.print_report();
-        }
+        print_errors(&file_name, &source, parser_errors);
+        return;
     }
 }

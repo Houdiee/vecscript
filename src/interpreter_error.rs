@@ -2,91 +2,94 @@ use crate::{
     lexer_error::LexerError,
     parser_error::{ParserError, ParserErrorKind},
 };
-use ariadne::{Label, Report, ReportKind, Source};
+use ariadne::{Color, Label, Report, ReportKind, Source};
 use std::ops::Range;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum InterpreterError {
     Lexer(LexerError),
     Parser(ParserError),
 }
 
-pub struct Diagnostic {
-    pub file_name: String,
-    pub source: String,
-    pub error: InterpreterError,
+pub trait ToInterpreterError: Sized {
+    fn to_interpreter_error(self) -> InterpreterError;
 }
 
-pub trait IntoInterpreterError: Sized + Clone {
-    fn into_interpreter_error(self) -> InterpreterError;
-}
-
-impl IntoInterpreterError for LexerError {
-    fn into_interpreter_error(self) -> InterpreterError {
+impl ToInterpreterError for LexerError {
+    fn to_interpreter_error(self) -> InterpreterError {
         InterpreterError::Lexer(self)
     }
 }
 
-impl IntoInterpreterError for ParserError {
-    fn into_interpreter_error(self) -> InterpreterError {
+impl ToInterpreterError for &LexerError {
+    fn to_interpreter_error(self) -> InterpreterError {
+        InterpreterError::Lexer(self.clone())
+    }
+}
+
+impl ToInterpreterError for ParserError {
+    fn to_interpreter_error(self) -> InterpreterError {
         InterpreterError::Parser(self)
     }
 }
-
-pub fn print_errors(file_name: &str, source: &str, errors: &[impl IntoInterpreterError]) {
-    for error in errors {
-        let owned_error = error.clone();
-
-        let diagnostic = Diagnostic {
-            file_name: file_name.to_string(),
-            source: source.to_string(),
-            error: owned_error.into_interpreter_error(),
-        };
-        diagnostic.print_report();
+impl ToInterpreterError for &ParserError {
+    fn to_interpreter_error(self) -> InterpreterError {
+        InterpreterError::Parser(self.clone())
     }
 }
 
-impl Diagnostic {
-    pub fn print_report(&self) {
-        let report = self.build_report();
-        let file_name = self.file_name.clone();
-        let source = Source::from(&self.source);
-        report.eprint((file_name, source)).expect("Failed to print error report")
+impl InterpreterError {
+    fn primary_info(&self) -> (Range<usize>, String) {
+        match self {
+            InterpreterError::Lexer(err) => (err.span.clone(), format!("{}", err.kind)),
+            InterpreterError::Parser(err) => (err.token.span.clone(), format!("Found: {}", err.token.kind)),
+        }
     }
 
-    fn build_report(&self) -> Report<(String, Range<usize>)> {
-        let file_name = self.file_name.clone();
+    pub fn build_report<'a>(&self, file_name: &'a str) -> Report<'_, (&'a str, Range<usize>)> {
+        let (error_span, primary_message) = self.primary_info();
+        let (report_kind, report_message) = match self {
+            InterpreterError::Lexer(_) => (ReportKind::Error, "Lexing Error"),
+            InterpreterError::Parser(_) => (ReportKind::Error, "Parsing Error"),
+        };
 
-        match &self.error {
-            InterpreterError::Lexer(lexer_error) => {
-                let error_span = lexer_error.span.clone();
-                let message = format!("{}", lexer_error.kind);
+        let mut report =
+            Report::build(report_kind, (file_name, error_span.clone())).with_message(format!("{}: {}", report_message, primary_message));
 
-                Report::build(ReportKind::Error, (file_name.clone(), error_span.clone()))
-                    .with_message(format!("Lexing Error: {}", message))
-                    .with_label(
-                        Label::new((file_name, error_span))
-                            .with_message(message)
-                            .with_color(ariadne::Color::Red),
-                    )
-                    .finish()
-            }
+        report = report.with_label(
+            Label::new((file_name, error_span.clone()))
+                .with_message(primary_message)
+                .with_color(Color::Red),
+        );
 
-            InterpreterError::Parser(parser_error) => {
-                let error_span = parser_error.token.span.clone();
-                let message = format!("{}", parser_error);
-                let report = Report::build(ReportKind::Error, (file_name.clone(), error_span.clone())).with_message(message.clone());
-                let report = report.with_label(
-                    Label::new((file_name.clone(), error_span))
-                        .with_message(format!("Found: {:?}", parser_error.token.kind))
-                        .with_color(ariadne::Color::Red),
+        if let InterpreterError::Parser(parser_error) = self {
+            if let ParserErrorKind::UnexpectedToken { expected } = &parser_error.kind {
+                let insertion_point = error_span.start;
+                let expected_span = insertion_point..insertion_point + 1;
+
+                report = report.with_label(
+                    Label::new((file_name, expected_span))
+                        .with_message(format!("Expected: {}", expected))
+                        .with_color(Color::Blue),
                 );
-                if let ParserErrorKind::UnexpectedToken { expected } = &parser_error.kind {
-                    report.with_note(format!("Hint: Expected {}", expected)).finish()
-                } else {
-                    report.finish()
-                }
+
+                report = report.with_note(format!("The parser was expecting: {}", expected));
             }
         }
+
+        report.finish()
+    }
+
+    pub fn print_report<'a>(&self, file_name: &'a str, source: &'a str) {
+        let report = self.build_report(file_name);
+        let source_map = Source::from(source);
+        report.eprint((file_name, source_map)).expect("Failed to print error report")
+    }
+}
+
+pub fn print_errors(file_name: &str, source: &str, errors: impl IntoIterator<Item = impl ToInterpreterError>) {
+    for error in errors.into_iter() {
+        let interpreter_error = error.to_interpreter_error();
+        interpreter_error.print_report(file_name, source);
     }
 }
