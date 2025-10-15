@@ -28,7 +28,6 @@ fn main() {
 
     let mut parser = Parser::init(tokens);
     let (program, parser_errors) = parser.parse();
-
     if !parser_errors.is_empty() {
         print_errors(&file_name, &source, parser_errors);
         return;

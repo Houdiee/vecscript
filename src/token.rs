@@ -160,14 +160,14 @@ impl Display for TokenKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use TokenKind::*;
         match self {
-            Identifier(s) => write!(f, "identifier {}", s),
-            Keyword(k) => write!(f, "keyword {}", k),
-            Delimiter(d) => write!(f, "delimiter {}", d),
-            Type(t) => write!(f, "type {}", t),
-            Operator(o) => write!(f, "operator {}", o),
-            Number(n) => write!(f, "number {}", n),
-            Bool(b) => write!(f, "bool {}", b),
-            String(s) => write!(f, "string {}", s),
+            Identifier(s) => write!(f, "identifier '{}'", s),
+            Keyword(k) => write!(f, "keyword '{}'", k),
+            Delimiter(d) => write!(f, "delimiter '{}'", d),
+            Type(t) => write!(f, "type '{}'", t),
+            Operator(o) => write!(f, "operator '{}'", o),
+            Number(n) => write!(f, "number '{}'", n),
+            Bool(b) => write!(f, "bool '{}'", b),
+            String(s) => write!(f, "string '{}", s),
             Assign => write!(f, "="),
             Newline => write!(f, "newline"),
             EOF => write!(f, "EOF"),

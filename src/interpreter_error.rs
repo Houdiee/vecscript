@@ -11,30 +11,10 @@ pub enum InterpreterError {
     Parser(ParserError),
 }
 
-pub trait ToInterpreterError: Sized {
-    fn to_interpreter_error(self) -> InterpreterError;
-}
-
-impl ToInterpreterError for LexerError {
-    fn to_interpreter_error(self) -> InterpreterError {
-        InterpreterError::Lexer(self)
-    }
-}
-
-impl ToInterpreterError for &LexerError {
-    fn to_interpreter_error(self) -> InterpreterError {
-        InterpreterError::Lexer(self.clone())
-    }
-}
-
-impl ToInterpreterError for ParserError {
-    fn to_interpreter_error(self) -> InterpreterError {
-        InterpreterError::Parser(self)
-    }
-}
-impl ToInterpreterError for &ParserError {
-    fn to_interpreter_error(self) -> InterpreterError {
-        InterpreterError::Parser(self.clone())
+pub fn print_errors(file_name: &str, source: &str, errors: impl IntoIterator<Item = impl ToInterpreterError>) {
+    for error in errors.into_iter() {
+        let interpreter_error = error.to_interpreter_error();
+        interpreter_error.print_report(file_name, source);
     }
 }
 
@@ -42,7 +22,10 @@ impl InterpreterError {
     fn primary_info(&self) -> (Range<usize>, String) {
         match self {
             InterpreterError::Lexer(err) => (err.span.clone(), format!("{}", err.kind)),
-            InterpreterError::Parser(err) => (err.token.span.clone(), format!("Found: {}", err.token.kind)),
+            InterpreterError::Parser(err) => match &err.kind {
+                ParserErrorKind::UnexpectedToken { expected: _ } => (err.token.span.clone(), format!("Found {}", err.token.kind)),
+                _ => (err.token.span.clone(), format!("Unexpected {}", err.token.kind)),
+            },
         }
     }
 
@@ -70,10 +53,8 @@ impl InterpreterError {
                 report = report.with_label(
                     Label::new((file_name, expected_span))
                         .with_message(format!("Expected: {}", expected))
-                        .with_color(Color::Blue),
+                        .with_color(Color::Green),
                 );
-
-                report = report.with_note(format!("The parser was expecting: {}", expected));
             }
         }
 
@@ -87,9 +68,29 @@ impl InterpreterError {
     }
 }
 
-pub fn print_errors(file_name: &str, source: &str, errors: impl IntoIterator<Item = impl ToInterpreterError>) {
-    for error in errors.into_iter() {
-        let interpreter_error = error.to_interpreter_error();
-        interpreter_error.print_report(file_name, source);
+pub trait ToInterpreterError: Sized {
+    fn to_interpreter_error(self) -> InterpreterError;
+}
+
+impl ToInterpreterError for LexerError {
+    fn to_interpreter_error(self) -> InterpreterError {
+        InterpreterError::Lexer(self)
+    }
+}
+
+impl ToInterpreterError for &LexerError {
+    fn to_interpreter_error(self) -> InterpreterError {
+        InterpreterError::Lexer(self.clone())
+    }
+}
+
+impl ToInterpreterError for ParserError {
+    fn to_interpreter_error(self) -> InterpreterError {
+        InterpreterError::Parser(self)
+    }
+}
+impl ToInterpreterError for &ParserError {
+    fn to_interpreter_error(self) -> InterpreterError {
+        InterpreterError::Parser(self.clone())
     }
 }
