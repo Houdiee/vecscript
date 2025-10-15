@@ -47,7 +47,7 @@ impl ReportableError for InterpreterError {
     }
 }
 
-pub fn build_report<'a>(error: impl ReportableError, file_name: &'a str) -> Report<'_, (&'a str, Range<usize>)> {
+pub fn build_report(error: impl ReportableError, file_name: &str) -> Report<'_, (&str, Range<usize>)> {
     let config = Config::default().with_index_type(ariadne::IndexType::Byte);
     let error_span = error.span();
     let primary_message = error.primary_message();

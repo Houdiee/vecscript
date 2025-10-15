@@ -1,6 +1,4 @@
-use std::{fmt::Display, ops::Range};
-
-use crate::report_error::ReportableError;
+use std::ops::Range;
 
 #[derive(Debug, Clone)]
 pub struct LexerError {
