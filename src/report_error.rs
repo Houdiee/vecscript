@@ -1,4 +1,8 @@
-use crate::{interpreter_error::InterpreterError, lexer::lexer_error::LexerError, parser::parser_error::ParserError};
+use crate::{
+    interpreter_error::{InterpreterError, ToInterpreterError},
+    lexer::lexer_error::LexerError,
+    parser::parser_error::ParserError,
+};
 use ariadne::{Color, Config, Label, Report, ReportKind, Source};
 use std::ops::Range;
 
@@ -82,32 +86,5 @@ pub fn print_errors(file_name: &str, source: &str, errors: impl IntoIterator<Ite
     for error in errors.into_iter() {
         let interpreter_error = error.to_interpreter_error();
         print_report(interpreter_error, file_name, source);
-    }
-}
-
-pub trait ToInterpreterError: Sized {
-    fn to_interpreter_error(self) -> InterpreterError;
-}
-
-impl ToInterpreterError for LexerError {
-    fn to_interpreter_error(self) -> InterpreterError {
-        InterpreterError::Lexer(self)
-    }
-}
-
-impl ToInterpreterError for &LexerError {
-    fn to_interpreter_error(self) -> InterpreterError {
-        InterpreterError::Lexer(self.clone())
-    }
-}
-
-impl ToInterpreterError for ParserError {
-    fn to_interpreter_error(self) -> InterpreterError {
-        InterpreterError::Parser(self)
-    }
-}
-impl ToInterpreterError for &ParserError {
-    fn to_interpreter_error(self) -> InterpreterError {
-        InterpreterError::Parser(self.clone())
     }
 }
