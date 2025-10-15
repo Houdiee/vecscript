@@ -8,7 +8,7 @@ where [
 ]
 
 let circle_area = area(3
-let complicated = let h = a where [ a = 2 ] in 2 + h
+let complicated = let h = a where [ a =  ] in 2 + h
 
 let one_of =
 	let is_true = true in

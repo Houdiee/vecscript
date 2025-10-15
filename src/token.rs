@@ -42,7 +42,6 @@ pub enum Keyword {
     If,
     Then,
     Else,
-    End,
     Type,
 }
 
@@ -109,7 +108,6 @@ impl Display for Keyword {
             If => write!(f, "if"),
             Then => write!(f, "then"),
             Else => write!(f, "else"),
-            End => write!(f, "end"),
             Type => write!(f, "type"),
         }
     }

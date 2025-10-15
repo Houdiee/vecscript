@@ -181,10 +181,6 @@ impl Parser {
             }
             self.consume();
             self.parse_optional_newline()?;
-
-            if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::End))) {
-                break;
-            }
             bindings.push(self.parse_variable_binding()?);
         }
 
