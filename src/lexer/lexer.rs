@@ -1,5 +1,5 @@
 use crate::{
-    lexer_error::{LexerError, LexerErrorKind},
+    lexer::lexer_error::{LexerError, LexerErrorKind},
     token::*,
 };
 use std::str;

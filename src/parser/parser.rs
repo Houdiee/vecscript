@@ -44,7 +44,7 @@ ExpressionList ::= Expression { COMMA Expression } ;
 
 use crate::{
     ast::*,
-    parser_error::{Expected, ParserError, ParserErrorKind},
+    parser::parser_error::{Expected, ParserError, ParserErrorKind},
     token::*,
 };
 
@@ -417,7 +417,7 @@ impl Parser {
                 Some(rbp) => rbp,
                 None => {
                     return Err(ParserError {
-                        kind: ParserErrorKind::InvalidUnaryOperator,
+                        kind: ParserErrorKind::InvalidUnaryOperator { operator: op },
                         token: next_token.clone(),
                     });
                 }
@@ -466,7 +466,9 @@ impl Parser {
             }
             _ => {
                 return Err(ParserError {
-                    kind: ParserErrorKind::InvalidExpression,
+                    kind: ParserErrorKind::UnexpectedToken {
+                        expected: Expected::Expression,
+                    },
                     token,
                 });
             }

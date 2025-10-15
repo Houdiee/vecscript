@@ -1,11 +1,10 @@
-use crate::{interpreter_error::print_errors, lexer::Lexer, parser::Parser};
+use crate::{lexer::lexer::Lexer, parser::parser::Parser, report_error::print_errors};
 
 pub mod ast;
 pub mod interpreter_error;
 pub mod lexer;
-pub mod lexer_error;
 pub mod parser;
-pub mod parser_error;
+pub mod report_error;
 pub mod token;
 
 fn main() {
