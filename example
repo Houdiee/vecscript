@@ -1,4 +1,4 @@
-let string = "fjdaskf"
+let string = "fjdaskf
 
 let sum = let x = 3, y = 2 in x + y
 

@@ -52,7 +52,6 @@ use crate::{
 pub struct Parser {
     tokens: Vec<Token>,
     position: usize,
-    errors: Vec<ParserError>,
 }
 
 impl Iterator for Parser {
@@ -73,30 +72,21 @@ impl Iterator for Parser {
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self {
-            tokens,
-            position: 0,
-            errors: Vec::new(),
-        }
+        Self { tokens, position: 0 }
     }
 
-    pub fn parse(&mut self) -> (Program, &Vec<ParserError>) {
-        (self.parse_program(), self.errors())
-    }
-
-    pub fn parse_program(&mut self) -> Program {
+    pub fn parse(&mut self) -> (Program, Vec<ParserError>) {
         let mut definitions = Vec::new();
+        let mut errors = Vec::new();
+
         while let Some(definition) = self.next() {
             match definition {
                 Ok(value) => definitions.push(value),
-                Err(e) => self.errors.push(e),
+                Err(err) => errors.push(err),
             }
         }
-        Program { definitions }
-    }
-
-    pub fn errors(&mut self) -> &Vec<ParserError> {
-        return &self.errors;
+        let program = Program { definitions };
+        return (program, errors);
     }
 
     fn synchronize(&mut self) {

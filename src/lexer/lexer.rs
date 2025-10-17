@@ -7,7 +7,6 @@ use std::str;
 pub struct Lexer<'src> {
     source: &'src [u8],
     position: usize,
-    errors: Vec<LexerError>,
 }
 
 impl<'src> Iterator for Lexer<'src> {
@@ -61,30 +60,19 @@ impl<'src> Iterator for Lexer<'src> {
 impl<'src> Lexer<'src> {
     pub fn new(source: &'src str) -> Self {
         let source = source.as_bytes();
-        Self {
-            source,
-            position: 0,
-            errors: Vec::new(),
-        }
+        Self { source, position: 0 }
     }
 
-    pub fn lex(&mut self) -> (Vec<Token>, &Vec<LexerError>) {
-        (self.tokens(), self.errors())
-    }
-
-    pub fn tokens(&mut self) -> Vec<Token> {
+    pub fn lex(&mut self) -> (Vec<Token>, Vec<LexerError>) {
         let mut tokens = Vec::new();
+        let mut errors = Vec::new();
         while let Some(token_result) = self.next() {
             match token_result {
                 Ok(token) => tokens.push(token),
-                Err(e) => self.errors.push(e),
+                Err(e) => errors.push(e),
             }
         }
-        return tokens;
-    }
-
-    pub fn errors(&self) -> &Vec<LexerError> {
-        return &self.errors;
+        return (tokens, errors);
     }
 
     fn word(&mut self, span_start: usize) -> Result<Token, LexerError> {
