@@ -79,7 +79,7 @@ impl Parser {
         let mut definitions = Vec::new();
         let mut errors = Vec::new();
 
-        while let Some(definition) = self.next() {
+        for definition in self.by_ref() {
             match definition {
                 Ok(value) => definitions.push(value),
                 Err(err) => errors.push(err),
