@@ -72,7 +72,7 @@ impl<'src> Lexer<'src> {
                 Err(e) => errors.push(e),
             }
         }
-        return (tokens, errors);
+        (tokens, errors)
     }
 
     fn word(&mut self, span_start: usize) -> Result<Token, LexerError> {
@@ -127,7 +127,7 @@ impl<'src> Lexer<'src> {
     }
 
     fn operator(&mut self, span_start: usize) -> Result<Token, LexerError> {
-        let op = self.consume().ok_or_else(|| LexerError {
+        let op = self.consume().ok_or(LexerError {
             kind: LexerErrorKind::UnexpectedEOF,
             span: span_start..self.position,
         })?;
@@ -179,7 +179,7 @@ impl<'src> Lexer<'src> {
     }
 
     fn delimiter(&mut self, span_start: usize) -> Result<Token, LexerError> {
-        let delim = self.consume().ok_or_else(|| LexerError {
+        let delim = self.consume().ok_or(LexerError {
             kind: LexerErrorKind::UnexpectedEOF,
             span: span_start..self.position,
         })?;
@@ -229,7 +229,7 @@ impl<'src> Lexer<'src> {
         // after the optional decimal point
         if self.peek() == Some(b'.') {
             self.consume();
-            let first_decimal = self.consume().ok_or_else(|| LexerError {
+            let first_decimal = self.consume().ok_or(LexerError {
                 kind: LexerErrorKind::InvalidNumber,
                 span: span_start..self.position,
             })?;
@@ -343,7 +343,7 @@ impl<'src> Lexer<'src> {
         if self.position >= self.source.len() {
             return None;
         }
-        return Some(self.source[self.position]);
+        Some(self.source[self.position])
     }
 
     fn consume(&mut self) -> Option<u8> {
@@ -351,6 +351,6 @@ impl<'src> Lexer<'src> {
             return None;
         }
         self.position += 1;
-        return Some(self.source[self.position - 1]);
+        Some(self.source[self.position - 1])
     }
 }

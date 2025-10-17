@@ -8,7 +8,7 @@ pub mod report_error;
 pub mod token;
 
 fn main() {
-    let file_name = "example";
+    let file_name = String::from("example");
     let source = std::fs::read_to_string(&file_name).expect("Failed to read file");
 
     let mut lexer = Lexer::new(&source);

@@ -86,7 +86,7 @@ impl Parser {
             }
         }
         let program = Program { definitions };
-        return (program, errors);
+        (program, errors)
     }
 
     fn synchronize(&mut self) {
@@ -94,7 +94,6 @@ impl Parser {
             if matches!(&current.kind, TokenKind::Keyword(Keyword::Let)) {
                 return;
             }
-
             if matches!(&current.kind, TokenKind::Newline) {
                 self.consume();
                 return;
@@ -363,12 +362,7 @@ impl Parser {
     fn parse_simple_expression_with_min_bp(&mut self, min_bp: BindingPower) -> Result<SimpleExpression, ParserError> {
         let mut lhs = self.parse_prefix()?;
 
-        loop {
-            let next_token = match self.peek() {
-                Some(t) => t,
-                None => break,
-            };
-
+        while let Some(next_token) = self.peek() {
             let is_implicit_multiplication = || {
                 matches!(lhs, SimpleExpression::Atom(Atom::Literal(Literal::Number(_))))
                     && matches!(next_token.kind, TokenKind::Identifier(_))
@@ -524,7 +518,7 @@ impl Parser {
         if !predicate(&token.kind) {
             return Err(ParserError {
                 kind: ParserErrorKind::UnexpectedToken { expected },
-                token: token,
+                token,
             });
         }
         Ok(token)
@@ -534,14 +528,14 @@ impl Parser {
         if self.position + nth >= self.tokens.len() {
             return None;
         }
-        return Some(&self.tokens[self.position + nth]);
+        Some(&self.tokens[self.position + nth])
     }
 
     fn peek(&self) -> Option<&Token> {
         if self.position >= self.tokens.len() {
             return None;
         }
-        return Some(&self.tokens[self.position]);
+        Some(&self.tokens[self.position])
     }
 
     fn consume(&mut self) -> Option<Token> {
@@ -549,20 +543,20 @@ impl Parser {
             return None;
         }
         self.position += 1;
-        return Some(self.tokens[self.position - 1].clone());
+        Some(self.tokens[self.position - 1].clone())
     }
 
     fn unexpected_eof_error(&self) -> ParserError {
         let token = match self.tokens.last() {
-            Some(t) => t,
-            None => &Token {
+            Some(tok) => tok.clone(),
+            None => Token {
                 kind: TokenKind::EOF,
                 span: 0..0,
             },
         };
         ParserError {
             kind: ParserErrorKind::UnexpectedEOF,
-            token: token.clone(),
+            token,
         }
     }
 }
