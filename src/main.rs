@@ -22,4 +22,5 @@ fn main() {
     if !parser_errors.is_empty() {
         print_errors(&file_name, &source, parser_errors);
     }
+    println!("{:#?}", program);
 }

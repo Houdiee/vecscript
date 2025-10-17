@@ -9,7 +9,7 @@ LetDefinition ::= LET Binding ;
 Binding ::= VariableBinding | FunctionBinding ;
 
 VariableBinding ::= IDENTIFIER [ TypeAnnotation ] ASSIGN [ NEWLINE ] Expression ;
-VariableBindingList ::= VariableBinding { COMMA [ NEWLINE ] VariableBinding  ;
+VariableBindingList ::= VariableBinding { COMMA [ NEWLINE ] VariableBinding [ COMMA ] ;
 
 FunctionBinding ::= IDENTIFIER LPAREN [ ParameterList ] RPAREN [ ReturnType ] ASSIGN [ NEWLINE ] Expression ;
 Parameter ::= IDENTIFIER [ TypeAnnotation ] ;
@@ -181,6 +181,9 @@ impl Parser {
             }
             self.consume();
             self.parse_optional_newline()?;
+            if !matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Identifier(_))) {
+                break;
+            }
             bindings.push(self.parse_variable_binding()?);
         }
 

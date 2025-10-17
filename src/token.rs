@@ -6,7 +6,7 @@ pub struct Token {
     pub span: Range<usize>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
     Identifier(String),
     Keyword(Keyword),
@@ -21,19 +21,19 @@ pub enum TokenKind {
     EOF,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     BaseType(BaseType),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BaseType {
     Num,
     Str,
     Bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Keyword {
     Let,
     Where,
@@ -44,7 +44,7 @@ pub enum Keyword {
     Type,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Delimiter {
     Range,  // ..
     Arrow,  // ->
@@ -59,7 +59,7 @@ pub enum Delimiter {
     Pipe,   // |
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Operator {
     Is,               // is
     Not,              // not

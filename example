@@ -1,17 +1,17 @@
+let string = "fjdaskf"
+
 let sum = let x = 3, y = 2 in x + y
 
 let area(r : Num) -> Num = pi * r^2 + k + u
 where [
 	pi = 3.14 * a * b where [ a = 1, b = 2 ],
 	u = 14,
-	!
-	k = 
+	k = 2,
 ]
-let string = "hello
-
-let circle_area = area(3
-let complicated = let h = a where [ a =  ] in 2 + h
+let string = "hello"
+let circle_area = area(3)
+let complicated = let h = a where [ a = 1 ] in 2 + h
 
 let one_of =
 	let is_true = true in
-	in if is_true then "hello" else "bad"
+	if is_true then "hello" else "bad"
