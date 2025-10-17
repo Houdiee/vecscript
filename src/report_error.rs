@@ -1,8 +1,4 @@
-use crate::{
-    interpreter_error::{InterpreterError, ToInterpreterError},
-    lexer::lexer_error::LexerError,
-    parser::parser_error::ParserError,
-};
+use crate::interpreter_error::{InterpreterError, ToInterpreterError};
 use ariadne::{Color, Config, Label, Report, ReportKind, Source};
 use std::ops::Range;
 
