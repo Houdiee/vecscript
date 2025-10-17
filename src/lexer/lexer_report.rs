@@ -8,19 +8,15 @@ impl ReportableError for LexerError {
     fn span(&self) -> Range<usize> {
         self.span.clone()
     }
-
     fn report_kind_message(&self) -> &'static str {
         "Lexer Error"
     }
-
     fn primary_message(&self) -> String {
         format!("{}", self)
     }
-
     fn label_message(&self) -> String {
         self.primary_message()
     }
-
     fn custom_label<'a>(&self, _file_name: &'a str, _span: Range<usize>) -> Option<ariadne::Label<(&'a str, Range<usize>)>> {
         None
     }

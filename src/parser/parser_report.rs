@@ -9,15 +9,12 @@ impl ReportableError for ParserError {
     fn report_kind_message(&self) -> &'static str {
         "Parser Error"
     }
-
     fn primary_message(&self) -> String {
         format!("{}", self)
     }
-
     fn label_message(&self) -> String {
         format!("Found {}", self.token.kind)
     }
-
     fn custom_label<'a>(&self, file_name: &'a str, span: std::ops::Range<usize>) -> Option<Label<(&'a str, std::ops::Range<usize>)>> {
         match &self.kind {
             ParserErrorKind::UnexpectedToken { expected } => Some(
