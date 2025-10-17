@@ -13,5 +13,5 @@ let circle_area = area(3)
 let complicated = let h = a where [ a = 1 ] in 2 + h
 
 let one_of =
-	let is_true = true in
-	if is_true then "hello" else "bad"
+	let is_true = true, hello = "hello" in
+	if is_true then hello else "bad"

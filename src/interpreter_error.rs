@@ -16,19 +16,8 @@ impl ToInterpreterError for LexerError {
     }
 }
 
-impl ToInterpreterError for &LexerError {
-    fn to_interpreter_error(self) -> InterpreterError {
-        InterpreterError::Lexer(self.clone())
-    }
-}
-
 impl ToInterpreterError for ParserError {
     fn to_interpreter_error(self) -> InterpreterError {
         InterpreterError::Parser(self)
-    }
-}
-impl ToInterpreterError for &ParserError {
-    fn to_interpreter_error(self) -> InterpreterError {
-        InterpreterError::Parser(self.clone())
     }
 }
