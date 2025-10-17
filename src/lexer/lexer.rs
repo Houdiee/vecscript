@@ -66,7 +66,7 @@ impl<'src> Lexer<'src> {
     pub fn lex(&mut self) -> (Vec<Token>, Vec<LexerError>) {
         let mut tokens = Vec::new();
         let mut errors = Vec::new();
-        while let Some(token_result) = self.next() {
+        for token_result in self.by_ref() {
             match token_result {
                 Ok(token) => tokens.push(token),
                 Err(e) => errors.push(e),
