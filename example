@@ -9,6 +9,7 @@ where [
 	k = 2,
 ]
 let string = "hello"
+let b = balls
 let circle_area = area(3)
 let complicated = let h = a where [ a = 1 ] in 2 + h
 

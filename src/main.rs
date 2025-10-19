@@ -1,4 +1,4 @@
-use crate::{lexer::lexer::Lexer, parser::parser::Parser, report_error::print_errors};
+use crate::{lexer::lexer::Lexer, parser::parser::Parser, report_error::print_errors, semantic::semantic::SemanticAnalyzer};
 
 pub mod ast;
 pub mod interpreter_error;
@@ -23,5 +23,13 @@ fn main() {
     if !parser_errors.is_empty() {
         print_errors(&file_name, &source, parser_errors);
     }
-    println!("{:#?}", program);
+
+    let analysis_result = SemanticAnalyzer::new(program).analyze();
+    match analysis_result {
+        Ok(verified_program) => println!("{:#?}", verified_program),
+        Err(semantic_errors) => {
+            print_errors(&file_name, &source, semantic_errors);
+            return;
+        }
+    }
 }

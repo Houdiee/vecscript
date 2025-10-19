@@ -6,8 +6,7 @@ pub trait ReportableError {
     fn span(&self) -> Range<usize>;
     fn report_kind_message(&self) -> &'static str;
     fn primary_message(&self) -> String;
-    fn label_message(&self) -> String;
-    fn custom_label<'a>(&self, file_name: &'a str, span: Range<usize>) -> Option<Label<(&'a str, Range<usize>)>>;
+    fn labels<'a>(&self, file_name: &'a str, span: Range<usize>) -> Vec<Label<(&'a str, Range<usize>)>>;
 }
 
 impl ReportableError for InterpreterError {
@@ -15,6 +14,7 @@ impl ReportableError for InterpreterError {
         match self {
             InterpreterError::Lexer(err) => err.span(),
             InterpreterError::Parser(err) => err.span(),
+            InterpreterError::Semantic(err) => err.span(),
         }
     }
 
@@ -22,6 +22,7 @@ impl ReportableError for InterpreterError {
         match self {
             InterpreterError::Lexer(err) => err.primary_message(),
             InterpreterError::Parser(err) => err.primary_message(),
+            InterpreterError::Semantic(err) => err.primary_message(),
         }
     }
 
@@ -29,20 +30,15 @@ impl ReportableError for InterpreterError {
         match self {
             InterpreterError::Lexer(err) => err.report_kind_message(),
             InterpreterError::Parser(err) => err.report_kind_message(),
+            InterpreterError::Semantic(err) => err.report_kind_message(),
         }
     }
 
-    fn label_message(&self) -> String {
+    fn labels<'a>(&self, file_name: &'a str, span: Range<usize>) -> Vec<Label<(&'a str, Range<usize>)>> {
         match self {
-            InterpreterError::Lexer(err) => err.label_message(),
-            InterpreterError::Parser(err) => err.label_message(),
-        }
-    }
-
-    fn custom_label<'a>(&self, file_name: &'a str, span: Range<usize>) -> Option<Label<(&'a str, Range<usize>)>> {
-        match self {
-            InterpreterError::Lexer(err) => err.custom_label(file_name, span),
-            InterpreterError::Parser(err) => err.custom_label(file_name, span),
+            InterpreterError::Lexer(err) => err.labels(file_name, span),
+            InterpreterError::Parser(err) => err.labels(file_name, span),
+            InterpreterError::Semantic(err) => err.labels(file_name, span),
         }
     }
 }
@@ -50,23 +46,16 @@ impl ReportableError for InterpreterError {
 pub fn build_report(error: impl ReportableError, file_name: &str) -> Report<'_, (&str, Range<usize>)> {
     let config = Config::default().with_index_type(ariadne::IndexType::Byte);
     let error_span = error.span();
-    let primary_message = error.primary_message();
-    let label_message = error.label_message();
     let report_message = error.report_kind_message();
+    let primary_message = error.primary_message();
+    let labels = error.labels(file_name, error_span.clone());
 
     let mut report = Report::build(ReportKind::Error, (file_name, error_span.clone()))
         .with_config(config)
         .with_message(format!("{}: {}", report_message, primary_message));
 
-    report = report.with_label(
-        Label::new((file_name, error_span.clone()))
-            .with_message(label_message)
-            .with_color(Color::Red)
-            .with_order(0),
-    );
-
-    if let Some(custom_label) = error.custom_label(file_name, error_span.clone()) {
-        report = report.with_label(custom_label);
+    for label in labels {
+        report = report.with_label(label);
     }
 
     report.finish()

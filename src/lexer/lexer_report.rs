@@ -1,3 +1,5 @@
+use ariadne::{Color, Label};
+
 use crate::{
     lexer::lexer_error::{LexerError, LexerErrorKind},
     report_error::ReportableError,
@@ -8,17 +10,21 @@ impl ReportableError for LexerError {
     fn span(&self) -> Range<usize> {
         self.span.clone()
     }
+
     fn report_kind_message(&self) -> &'static str {
         "Lexer Error"
     }
+
     fn primary_message(&self) -> String {
         format!("{}", self)
     }
-    fn label_message(&self) -> String {
-        self.primary_message()
-    }
-    fn custom_label<'a>(&self, _file_name: &'a str, _span: Range<usize>) -> Option<ariadne::Label<(&'a str, Range<usize>)>> {
-        None
+
+    fn labels<'a>(&self, file_name: &'a str, span: Range<usize>) -> Vec<Label<(&'a str, Range<usize>)>> {
+        vec![
+            Label::new((file_name, span))
+                .with_message(format!("{}", self))
+                .with_color(Color::Red),
+        ]
     }
 }
 

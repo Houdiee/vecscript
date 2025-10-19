@@ -12,18 +12,25 @@ impl ReportableError for ParserError {
     fn primary_message(&self) -> String {
         format!("{}", self)
     }
-    fn label_message(&self) -> String {
-        format!("Found {}", self.token.kind)
-    }
-    fn custom_label<'a>(&self, file_name: &'a str, span: std::ops::Range<usize>) -> Option<Label<(&'a str, std::ops::Range<usize>)>> {
+
+    fn labels<'a>(&self, file_name: &'a str, span: std::ops::Range<usize>) -> Vec<Label<(&'a str, std::ops::Range<usize>)>> {
+        use ParserErrorKind::*;
         match &self.kind {
-            ParserErrorKind::UnexpectedToken { expected } => Some(
+            UnexpectedToken { expected } => vec![
+                Label::new((file_name, span.clone()))
+                    .with_message(format!("Found {}", self.token.kind))
+                    .with_color(Color::Red)
+                    .with_order(0),
                 Label::new((file_name, span))
                     .with_message(format!("Expected {}", expected))
                     .with_color(Color::Green)
                     .with_order(-1),
-            ),
-            _ => None,
+            ],
+            _ => vec![
+                Label::new((file_name, span))
+                    .with_message(format!("Found {}", self.token.kind))
+                    .with_color(Color::Red),
+            ],
         }
     }
 }
