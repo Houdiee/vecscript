@@ -1,7 +1,6 @@
 let string = "fjdaskf
 
 let sum = let x = 3, y = 2 in x + y
-let sum = 1 + 1
 
 let area(r : Num) -> Num = pi * r^2 + k + u
 where [
@@ -16,6 +15,7 @@ let circle_area = area(3)
 let square_area = square_area(1)
 let complicated = let h = a where [ a = 1 ] in 2 + h
 
+let sum = 1 + 1
 let one_of =
 	let is_true = true, hello = "hello" in
 	if is_true then hello else "bad"

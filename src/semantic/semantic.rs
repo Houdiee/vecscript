@@ -49,11 +49,10 @@ impl SemanticAnalyzer {
             BindingKind::Variable(vb) => {
                 self.dfs_expression(&vb.expr);
 
-                // Use &vb.name.kind for lookup (assuming SymbolTable accepts &String or &str)
                 if let Some(symbol_info) = self.symbol_table.lookup(&vb.name.kind) {
                     self.errors.push(SemanticError {
-                        kind: SemanticErrorKind::VariableAlreadyDeclared {
-                            name: vb.name.kind.clone(), // Clone the String value for the error
+                        kind: SemanticErrorKind::IdentifierAlreadyDeclared {
+                            name: vb.name.kind.clone(),
                             original_location: symbol_info.declaration_span.clone(),
                         },
                         span: vb.name.span.clone(),
@@ -66,7 +65,7 @@ impl SemanticAnalyzer {
                 };
 
                 self.symbol_table.insert(
-                    vb.name.kind.clone(), // Clone String for symbol table storage
+                    vb.name.kind.clone(),
                     SymbolInfo {
                         symbol_type: variable_type,
                         declaration_span: vb.name.span.clone(),
@@ -79,10 +78,9 @@ impl SemanticAnalyzer {
                     TypeAnnotation::None => Type::Unknown,
                 };
 
-                // Use &fb.name.kind for lookup
                 if self.symbol_table.lookup(&fb.name.kind).is_none() {
                     self.symbol_table.insert(
-                        fb.name.kind.clone(), // Clone String for symbol table storage
+                        fb.name.kind.clone(),
                         SymbolInfo {
                             symbol_type: fn_type.clone(),
                             declaration_span: fb.name.span.clone(),
@@ -90,7 +88,7 @@ impl SemanticAnalyzer {
                     );
                 } else {
                     self.errors.push(SemanticError {
-                        kind: SemanticErrorKind::VariableAlreadyDeclared {
+                        kind: SemanticErrorKind::IdentifierAlreadyDeclared {
                             name: fb.name.kind.clone(),
                             original_location: self.symbol_table.lookup(&fb.name.kind).unwrap().declaration_span.clone(),
                         },
@@ -116,7 +114,7 @@ impl SemanticAnalyzer {
                         );
                     } else {
                         self.errors.push(SemanticError {
-                            kind: SemanticErrorKind::VariableAlreadyDeclared {
+                            kind: SemanticErrorKind::IdentifierAlreadyDeclared {
                                 name: param.name.kind.clone(),
                                 original_location: self.symbol_table.lookup(&param.name.kind).unwrap().declaration_span.clone(),
                             },
@@ -138,10 +136,9 @@ impl SemanticAnalyzer {
                 for vb in bindings {
                     self.dfs_expression(&vb.expr);
 
-                    // Use &vb.name.kind for lookup
                     if let Some(symbol_info) = self.symbol_table.lookup(&vb.name.kind) {
                         self.errors.push(SemanticError {
-                            kind: SemanticErrorKind::VariableAlreadyDeclared {
+                            kind: SemanticErrorKind::IdentifierAlreadyDeclared {
                                 name: vb.name.kind.clone(),
                                 original_location: symbol_info.declaration_span.clone(),
                             },
@@ -155,7 +152,7 @@ impl SemanticAnalyzer {
                     };
 
                     self.symbol_table.insert(
-                        vb.name.kind.clone(), // Clone String for symbol table storage
+                        vb.name.kind.clone(),
                         SymbolInfo {
                             symbol_type: variable_type,
                             declaration_span: vb.name.span.clone(),
