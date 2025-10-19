@@ -10,13 +10,15 @@ pub struct SymbolInfo {
     pub declaration_span: Range<usize>,
 }
 
-impl SymbolTable {
-    pub fn new() -> Self {
-        SymbolTable {
+impl Default for SymbolTable {
+    fn default() -> Self {
+        Self {
             scopes: vec![HashMap::new()],
         }
     }
+}
 
+impl SymbolTable {
     pub fn enter_scope(&mut self) {
         self.scopes.push(HashMap::new());
     }
@@ -30,6 +32,7 @@ impl SymbolTable {
             current_scope.insert(name, info);
         }
     }
+
     pub fn lookup(&self, name: &str) -> Option<&SymbolInfo> {
         self.scopes.iter().rev().find_map(|scope| scope.get(name))
     }

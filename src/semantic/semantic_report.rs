@@ -24,17 +24,20 @@ impl ReportableError for SemanticError {
         match &self.kind {
             UndefinedIdentifier { name: _ } => vec![
                 Label::new((file_name, span))
-                    .with_message(format!("Undefined identifier"))
+                    .with_message("Undefined identifier")
                     .with_color(Color::Red),
             ],
 
-            IdentifierAlreadyDeclared { name, original_location } => vec![
+            IdentifierAlreadyDeclared {
+                name: _,
+                original_location,
+            } => vec![
                 Label::new((file_name, original_location.clone()))
                     .with_message("Declared here")
                     .with_color(Color::Red)
                     .with_order(0),
                 Label::new((file_name, span))
-                    .with_message(format!("Redeclared here"))
+                    .with_message("Redeclared here")
                     .with_color(Color::Red)
                     .with_order(1),
             ],
@@ -53,9 +56,12 @@ impl Display for SemanticError {
         use SemanticErrorKind::*;
         match &self.kind {
             UndefinedIdentifier { name } => write!(f, "Undefined identifier {name:?}"),
-            IdentifierAlreadyDeclared { name, original_location } => write!(f, "Identifier {name:?} already declared"),
-            TypeMismatch { expected, found } => write!(f, "Expected type {expected} but found {found}"),
+            IdentifierAlreadyDeclared {
+                name,
+                original_location: _,
+            } => write!(f, "Identifier {name:?} already declared"),
             NonBooleanCondition => write!(f, "Condition doesn't evaluate to bool"),
+            _ => todo!(), // delete this later
         }
     }
 }

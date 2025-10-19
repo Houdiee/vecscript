@@ -1,10 +1,10 @@
 use crate::{
     ast::*,
     semantic::{
-        semantic_error::{SemanticError, SemanticErrorKind},
+        semantic_error::{SemanticError, SemanticErrorKind, TypeMismatchKind},
         symbol_table::{SymbolInfo, SymbolTable},
     },
-    token::Type,
+    token::{BaseType, Type},
 };
 
 pub struct SemanticAnalyzer {
@@ -17,7 +17,7 @@ impl SemanticAnalyzer {
     pub fn new(program: Program) -> Self {
         Self {
             program,
-            symbol_table: SymbolTable::new(),
+            symbol_table: SymbolTable::default(),
             errors: Vec::new(),
         }
     }
@@ -76,61 +76,113 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn dfs_expression(&mut self, expression: &Expression) {
+    fn dfs_expression(&mut self, expression: &Expression) -> Type {
         match &expression.value {
             ExpressionKind::Simple(simple) => self.dfs_simple_expression(simple),
+
             ExpressionKind::LetIn { bindings, body } => {
                 self.symbol_table.enter_scope();
                 for vb in bindings {
-                    self.dfs_expression(&vb.expr);
-                    let variable_type = match &vb.var_type {
+                    let evaluated_type = self.dfs_expression(&vb.expr);
+                    let annotated_type = match &vb.var_type {
                         TypeAnnotation::Some(t) => t.value.clone(),
-                        TypeAnnotation::None => Type::Unknown,
+                        TypeAnnotation::None => evaluated_type.clone(),
                     };
-                    self.insert_binding_into_symbol_table(&vb.name, variable_type);
+
+                    if let TypeAnnotation::Some(annotation) = &vb.var_type {
+                        if annotation.value != evaluated_type {
+                            self.errors.push(SemanticError {
+                                kind: SemanticErrorKind::TypeMismatch {
+                                    kind: TypeMismatchKind::TypeAnnotation,
+                                    expected: annotation.value.clone(),
+                                    found: evaluated_type,
+                                },
+                                span: vb.expr.span.clone(),
+                            });
+                        }
+                    }
+                    self.insert_binding_into_symbol_table(&vb.name, annotated_type);
                 }
-                self.dfs_expression(body.as_ref());
+                let body = self.dfs_expression(body.as_ref());
                 self.symbol_table.exit_scope();
+                body
             }
             ExpressionKind::IfElse {
                 condition,
                 true_branch,
                 false_branch,
             } => {
-                self.dfs_expression(condition.as_ref());
-                self.dfs_expression(true_branch.as_ref());
-                self.dfs_expression(false_branch.as_ref());
+                let condition_type = self.dfs_expression(condition);
+                if condition_type != Type::BaseType(BaseType::Bool) {
+                    self.errors.push(SemanticError {
+                        kind: SemanticErrorKind::NonBooleanCondition,
+                        span: condition.span.clone(),
+                    });
+                }
+
+                let true_type = self.dfs_expression(true_branch.as_ref());
+                let false_type = self.dfs_expression(false_branch.as_ref());
+                if true_type != false_type {
+                    self.errors.push(SemanticError {
+                        kind: SemanticErrorKind::TypeMismatch {
+                            kind: TypeMismatchKind::IfElseReturn,
+                            expected: true_type.clone(),
+                            found: false_type,
+                        },
+                        span: false_branch.span.clone(),
+                    });
+                }
+                true_type
             }
         }
     }
 
-    fn dfs_simple_expression(&mut self, simple_expression: &SimpleExpression) {
+    fn dfs_simple_expression(&mut self, simple_expression: &SimpleExpression) -> Type {
         match &simple_expression.value {
             SimpleExpressionKind::Atom(atom) => self.dfs_atom(atom),
             SimpleExpressionKind::BinaryOp(left, _, right) => {
-                self.dfs_simple_expression(left.as_ref());
-                self.dfs_simple_expression(right.as_ref());
+                let left_type = self.dfs_simple_expression(left.as_ref());
+                let right_type = self.dfs_simple_expression(right.as_ref());
+                if left_type != right_type {
+                    self.errors.push(SemanticError {
+                        kind: SemanticErrorKind::TypeMismatch {
+                            kind: TypeMismatchKind::IfElseReturn,
+                            expected: left_type,
+                            found: right_type.clone(),
+                        },
+                        span: right.span.clone(),
+                    });
+                }
+                right_type
             }
-            SimpleExpressionKind::UnaryOp(_, expr) => {
-                self.dfs_simple_expression(expr.as_ref());
-            }
+            SimpleExpressionKind::UnaryOp(_, expr) => self.dfs_simple_expression(expr.as_ref()),
         }
     }
 
-    fn dfs_atom(&mut self, atom: &Atom) {
+    fn dfs_atom(&mut self, atom: &Atom) -> Type {
         match &atom.value {
-            AtomKind::Literal(_) => {}
-            AtomKind::Identifier(name) => {
-                if self.symbol_table.lookup(&name.value).is_none() {
+            AtomKind::Literal(literal) => match literal {
+                Literal::Number(_) => Type::BaseType(BaseType::Num),
+                Literal::String(_) => Type::BaseType(BaseType::Str),
+                Literal::Bool(_) => Type::BaseType(BaseType::Bool),
+            },
+
+            AtomKind::Identifier(name) => match self.symbol_table.lookup(&name.value) {
+                Some(info) => info.symbol_type.clone(),
+                None => {
                     self.errors.push(SemanticError {
                         kind: SemanticErrorKind::UndefinedIdentifier { name: name.value.clone() },
                         span: name.span.clone(),
                     });
+                    Type::Unknown
                 }
-            }
+            },
+
             AtomKind::Parenthesized(expr) => self.dfs_expression(expr.as_ref()),
+
             AtomKind::FunctionCall(func_call) => {
-                if self.symbol_table.lookup(&func_call.name.value).is_none() {
+                let function_info = self.symbol_table.lookup(&func_call.name.value);
+                if function_info.is_none() {
                     self.errors.push(SemanticError {
                         kind: SemanticErrorKind::UndefinedIdentifier {
                             name: func_call.name.value.clone(),
@@ -141,13 +193,14 @@ impl SemanticAnalyzer {
                 for arg in &func_call.arguments {
                     self.dfs_expression(arg);
                 }
+                todo!()
             }
         }
     }
 
-    fn insert_binding_into_symbol_table(&mut self, name_token: &Spanned<String>, symbol_type: Type) {
-        let name = &name_token.value;
-        let span = &name_token.span;
+    fn insert_binding_into_symbol_table(&mut self, spanned_name: &Spanned<String>, symbol_type: Type) {
+        let name = &spanned_name.value;
+        let span = &spanned_name.span;
 
         if let Some(symbol_info) = self.symbol_table.lookup(name) {
             self.errors.push(SemanticError {
