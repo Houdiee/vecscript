@@ -26,6 +26,7 @@ impl ReportableError for ParserError {
                     .with_color(Color::Green)
                     .with_order(-1),
             ],
+
             _ => vec![
                 Label::new((file_name, span))
                     .with_message(format!("Found {}", self.token.kind))

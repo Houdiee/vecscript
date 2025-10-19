@@ -6,11 +6,12 @@ let area(r : Num) -> Num = pi * r^2 + k + u
 where [
 	pi = 3.14 * a * b where [ a = 1, b = 2 ],
 	u = 14,
-	k = 2,
+	k = 12
 ]
 let string = "hello"
 let b = balls
 let circle_area = area(3)
+let square_area = square_area(1)
 let complicated = let h = a where [ a = 1 ] in 2 + h
 
 let one_of =

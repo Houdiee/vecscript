@@ -1,5 +1,5 @@
 use crate::interpreter_error::{InterpreterError, ToInterpreterError};
-use ariadne::{Color, Config, Label, Report, ReportKind, Source};
+use ariadne::{Config, Label, Report, ReportKind, Source};
 use std::ops::Range;
 
 pub trait ReportableError {

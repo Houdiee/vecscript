@@ -29,7 +29,6 @@ fn main() {
         Ok(verified_program) => println!("{:#?}", verified_program),
         Err(semantic_errors) => {
             print_errors(&file_name, &source, semantic_errors);
-            return;
         }
     }
 }

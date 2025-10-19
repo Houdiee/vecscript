@@ -20,7 +20,14 @@ impl ReportableError for SemanticError {
     }
 
     fn labels<'a>(&self, file_name: &'a str, span: std::ops::Range<usize>) -> Vec<Label<(&'a str, std::ops::Range<usize>)>> {
+        use SemanticErrorKind::*;
         match &self.kind {
+            UndefinedIdentifier { name: _ } => vec![
+                Label::new((file_name, span))
+                    .with_message(format!("Undefined identifier"))
+                    .with_color(Color::Red),
+            ],
+
             _ => vec![
                 Label::new((file_name, span))
                     .with_message(format!("{}", self))
@@ -34,7 +41,7 @@ impl Display for SemanticError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use SemanticErrorKind::*;
         match &self.kind {
-            UndefinedIdentifier { name } => write!(f, "Undefined identifier {name}"),
+            UndefinedIdentifier { name } => write!(f, "Undefined identifier {name:?}"),
             TypeMismatch { expected, found } => write!(f, "Expected type {expected} but found {found}"),
             NonBooleanCondition => write!(f, "Condition doesn't evaluate to bool"),
         }
