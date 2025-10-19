@@ -1,52 +1,58 @@
 use crate::token::*;
+use std::ops::Range;
 
 #[derive(Debug)]
 pub struct Program {
     pub definitions: Vec<Definition>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+pub struct Spanned<T> {
+    pub kind: T,
+    pub span: Range<usize>,
+}
+
+#[derive(Debug, Clone)]
 pub enum Definition {
-    Let(LetDefinition),
+    Let(Binding),
 }
 
-#[derive(Debug)]
-pub struct LetDefinition {
-    pub binding: Binding,
-}
-
-#[derive(Debug)]
-pub enum Binding {
+#[derive(Debug, Clone)]
+pub enum BindingKind {
     Variable(VariableBinding),
     Function(FunctionBinding),
 }
+pub type Binding = Spanned<BindingKind>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VariableBinding {
     pub name: String,
+    pub name_span: Range<usize>,
     pub var_type: TypeAnnotation,
     pub expr: Expression,
 }
 pub type TypeAnnotation = Option<Type>;
 pub type VariableBindingList = Vec<VariableBinding>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FunctionBinding {
     pub name: String,
+    pub name_span: Range<usize>,
     pub params: Vec<Parameter>,
     pub return_type: TypeAnnotation,
     pub body: Expression,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Parameter {
     pub name: String,
+    pub name_span: Range<usize>,
     pub param_type: TypeAnnotation,
 }
 pub type ParameterList = Vec<Parameter>;
 
-#[derive(Debug)]
-pub enum Expression {
+#[derive(Debug, Clone)]
+pub enum ExpressionKind {
     Simple(SimpleExpression),
     LetIn {
         bindings: VariableBindingList,
@@ -58,32 +64,35 @@ pub enum Expression {
         false_branch: Box<Expression>,
     },
 }
+pub type Expression = Spanned<ExpressionKind>;
+pub type ExpressionList = Vec<Expression>;
 
-#[derive(Debug)]
-pub enum SimpleExpression {
+#[derive(Debug, Clone)]
+pub enum SimpleExpressionKind {
     Atom(Atom),
     BinaryOp(Box<SimpleExpression>, Operator, Box<SimpleExpression>),
     UnaryOp(Operator, Box<SimpleExpression>),
 }
+pub type SimpleExpression = Spanned<SimpleExpressionKind>;
 
-#[derive(Debug)]
-pub enum Atom {
+#[derive(Debug, Clone)]
+pub enum AtomKind {
     Literal(Literal),
     Identifier(String),
     Parenthesized(Box<Expression>),
     FunctionCall(FunctionCall),
 }
+pub type Atom = Spanned<AtomKind>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Literal {
     Number(f64),
     String(String),
     Bool(bool),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FunctionCall {
     pub name: String,
     pub arguments: ExpressionList,
 }
-pub type ExpressionList = Vec<Expression>;
