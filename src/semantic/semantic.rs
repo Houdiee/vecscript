@@ -1,5 +1,5 @@
-use crate::{ast::*, token::Type};
-use std::{collections::HashMap, ops::Range};
+use crate::{ast::*, semantic::symbol_table::SymbolTable, token::Type};
+use std::ops::Range;
 
 #[derive(Debug, Clone)]
 pub enum SemanticErrorKind {
@@ -12,35 +12,6 @@ pub enum SemanticErrorKind {
 pub struct SemanticError {
     pub kind: SemanticErrorKind,
     pub span: Range<usize>,
-}
-
-pub struct SymbolTable {
-    scopes: Vec<HashMap<String, Type>>,
-}
-
-impl SymbolTable {
-    pub fn new() -> Self {
-        SymbolTable {
-            scopes: vec![HashMap::new()],
-        }
-    }
-
-    pub fn enter_scope(&mut self) {
-        self.scopes.push(HashMap::new());
-    }
-
-    pub fn exit_scope(&mut self) {
-        self.scopes.pop();
-    }
-
-    pub fn insert(&mut self, name: String, item_type: Type) {
-        if let Some(current_scope) = self.scopes.last_mut() {
-            current_scope.insert(name, item_type);
-        }
-    }
-    pub fn lookup(&self, name: &str) -> Option<Type> {
-        self.scopes.iter().rev().find_map(|scope| scope.get(name).cloned())
-    }
 }
 
 pub fn dfs_program(program: &Program) -> Result<(), SemanticError> {

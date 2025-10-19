@@ -5,7 +5,7 @@ pub mod interpreter_error;
 pub mod lexer;
 pub mod parser;
 pub mod report_error;
-pub mod semantic_analysis;
+pub mod semantic;
 pub mod token;
 
 fn main() {
