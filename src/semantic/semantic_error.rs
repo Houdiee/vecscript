@@ -4,6 +4,7 @@ use std::ops::Range;
 #[derive(Debug, Clone)]
 pub enum SemanticErrorKind {
     UndefinedIdentifier { name: String },
+    VariableAlreadyDeclared { name: String, original_location: Range<usize> },
     TypeMismatch { expected: Type, found: Type },
     NonBooleanCondition,
 }

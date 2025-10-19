@@ -26,18 +26,16 @@ pub type Binding = Spanned<BindingKind>;
 
 #[derive(Debug, Clone)]
 pub struct VariableBinding {
-    pub name: String,
-    pub name_span: Range<usize>,
+    pub name: Spanned<String>,
     pub var_type: TypeAnnotation,
     pub expr: Expression,
 }
-pub type TypeAnnotation = Option<Type>;
+pub type TypeAnnotation = Option<Spanned<Type>>;
 pub type VariableBindingList = Vec<VariableBinding>;
 
 #[derive(Debug, Clone)]
 pub struct FunctionBinding {
-    pub name: String,
-    pub name_span: Range<usize>,
+    pub name: Spanned<String>,
     pub params: Vec<Parameter>,
     pub return_type: TypeAnnotation,
     pub body: Expression,
@@ -45,8 +43,7 @@ pub struct FunctionBinding {
 
 #[derive(Debug, Clone)]
 pub struct Parameter {
-    pub name: String,
-    pub name_span: Range<usize>,
+    pub name: Spanned<String>,
     pub param_type: TypeAnnotation,
 }
 pub type ParameterList = Vec<Parameter>;
@@ -78,7 +75,7 @@ pub type SimpleExpression = Spanned<SimpleExpressionKind>;
 #[derive(Debug, Clone)]
 pub enum AtomKind {
     Literal(Literal),
-    Identifier(String),
+    Identifier(Spanned<String>),
     Parenthesized(Box<Expression>),
     FunctionCall(FunctionCall),
 }
@@ -93,6 +90,6 @@ pub enum Literal {
 
 #[derive(Debug, Clone)]
 pub struct FunctionCall {
-    pub name: String,
+    pub name: Spanned<String>,
     pub arguments: ExpressionList,
 }

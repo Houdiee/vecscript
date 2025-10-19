@@ -81,21 +81,15 @@ impl Parser {
     }
 
     fn parse_let_definition(&mut self) -> Result<Binding, ParserError> {
-        let let_token = self.expect(
+        let _let_token = self.expect(
             |kind| matches!(kind, TokenKind::Keyword(Keyword::Let)),
             Expected::Keyword(Keyword::Let),
         )?;
-        let start_span = let_token.span.start;
-
-        let mut binding = self.parse_binding()?;
-
-        binding.span.start = start_span;
-
-        Ok(binding)
+        self.parse_binding()
     }
 
     fn parse_binding(&mut self) -> Result<Binding, ParserError> {
-        let name_token = self.peek().ok_or_else(|| self.unexpected_eof_error())?;
+        let name_token = self.peek().ok_or_else(|| self.unexpected_eof_error())?.to_owned();
         let start_span = name_token.span.start;
 
         let peek_1th = self.peek_nth(1).ok_or_else(|| self.unexpected_eof_error())?;
@@ -129,23 +123,17 @@ impl Parser {
 
     fn parse_variable_binding(&mut self) -> Result<VariableBinding, ParserError> {
         let name_token = self.expect(|kind| matches!(kind, TokenKind::Identifier(_)), Expected::VariableName)?;
-        let name_span = name_token.span;
-        let name = match name_token.kind {
+        let name = name_token.into_spanned(|kind| match kind {
             TokenKind::Identifier(s) => s,
             _ => unreachable!(),
-        };
+        });
 
         let var_type = self.parse_type_annotation()?;
         self.expect(|kind| matches!(kind, TokenKind::Assign), Expected::Assignment)?;
         self.parse_optional_newline()?;
         let expr = self.parse_expression()?;
 
-        Ok(VariableBinding {
-            name,
-            name_span,
-            var_type,
-            expr,
-        })
+        Ok(VariableBinding { name, var_type, expr })
     }
 
     fn parse_variable_binding_list(&mut self) -> Result<VariableBindingList, ParserError> {
@@ -169,11 +157,10 @@ impl Parser {
 
     fn parse_function_binding(&mut self) -> Result<FunctionBinding, ParserError> {
         let name_token = self.expect(|kind| matches!(kind, TokenKind::Identifier(_)), Expected::VariableName)?;
-        let name_span = name_token.span;
-        let name = match name_token.kind {
+        let name = name_token.into_spanned(|kind| match kind {
             TokenKind::Identifier(s) => s,
             _ => unreachable!(),
-        };
+        });
 
         self.expect(
             |kind| matches!(kind, TokenKind::Delimiter(Delimiter::LParen)),
@@ -191,7 +178,6 @@ impl Parser {
 
         Ok(FunctionBinding {
             name,
-            name_span,
             params,
             return_type,
             body,
@@ -214,17 +200,13 @@ impl Parser {
 
     fn parse_parameter(&mut self) -> Result<Parameter, ParserError> {
         let name_token = self.expect(|kind| matches!(kind, TokenKind::Identifier(_)), Expected::VariableName)?;
-        let name_span = name_token.span;
-        let name = match name_token.kind {
+        let name = name_token.into_spanned(|kind| match kind {
             TokenKind::Identifier(s) => s,
             _ => unreachable!(),
-        };
+        });
+
         let param_type = self.parse_type_annotation()?;
-        Ok(Parameter {
-            name,
-            name_span,
-            param_type,
-        })
+        Ok(Parameter { name, param_type })
     }
 
     fn parse_type_annotation(&mut self) -> Result<TypeAnnotation, ParserError> {
@@ -237,11 +219,12 @@ impl Parser {
             Expected::TypeAnnotation,
         )?;
         let type_token = self.expect(|kind| matches!(kind, TokenKind::Type(_)), Expected::Type)?;
-        let type_t = match type_token.kind {
+        let r#type = type_token.into_spanned(|kind| match kind {
             TokenKind::Type(t) => t,
             _ => unreachable!(),
-        };
-        Ok(TypeAnnotation::Some(type_t))
+        });
+
+        Ok(TypeAnnotation::Some(r#type))
     }
 
     fn parse_return_type(&mut self) -> Result<TypeAnnotation, ParserError> {
@@ -250,11 +233,12 @@ impl Parser {
         }
         self.expect(|kind| matches!(kind, TokenKind::Delimiter(Delimiter::Arrow)), Expected::ReturnType)?;
         let type_token = self.expect(|kind| matches!(kind, TokenKind::Type(_)), Expected::Type)?;
-        let type_t = match type_token.kind {
+        let r#type = type_token.into_spanned(|kind| match kind {
             TokenKind::Type(t) => t,
             _ => unreachable!(),
-        };
-        Ok(TypeAnnotation::Some(type_t))
+        });
+
+        Ok(TypeAnnotation::Some(r#type))
     }
 
     fn parse_expression(&mut self) -> Result<Expression, ParserError> {
@@ -289,7 +273,7 @@ impl Parser {
 
                 let (kind, end) = match where_suffix {
                     Some(bindings) => {
-                        let end = self.tokens[self.position - 1].span.end;
+                        let end = bindings.last().map(|b| b.expr.span.end).unwrap_or(simple_as_expression.span.end);
                         (
                             ExpressionKind::LetIn {
                                 bindings,
@@ -345,7 +329,6 @@ impl Parser {
         self.parse_optional_newline()?;
 
         let _else_token = self.expect(
-            // Underscore added to suppress unused variable warning
             |kind| matches!(kind, TokenKind::Keyword(Keyword::Else)),
             Expected::Keyword(Keyword::Else),
         )?;
@@ -407,6 +390,9 @@ impl Parser {
 
                 let op = Operator::Multiply;
 
+                // NOTE: No token consumption here for the implicit op.
+                // The implicit multiply span is calculated from the LHS start to the RHS end.
+
                 let rhs = self.parse_simple_expression_with_min_bp(rbp)?;
 
                 let new_span = lhs.span.start..rhs.span.end;
@@ -418,29 +404,26 @@ impl Parser {
                 continue;
             }
 
-            let op_token = match &next_token.kind {
-                TokenKind::Operator(_op) => next_token.clone(), // Underscore added to suppress unused variable warning
+            let op_token_kind = match &next_token.kind {
+                TokenKind::Operator(op) => *op,
                 _ => break,
             };
-            let op = match op_token.kind {
-                TokenKind::Operator(op) => op,
-                _ => unreachable!(),
-            };
 
-            let (lbp, rbp) = get_bp(op);
+            let (lbp, rbp) = get_bp(op_token_kind);
 
             if lbp < min_bp {
                 break;
             }
 
-            self.consume();
+            // Consume the operator token now that we know we're parsing a binary operation.
+            let _op_token = self.consume().unwrap();
 
             let rhs = self.parse_simple_expression_with_min_bp(rbp)?;
 
             let new_span = lhs.span.start..rhs.span.end;
 
             lhs = Spanned {
-                kind: SimpleExpressionKind::BinaryOp(Box::new(lhs), op, Box::new(rhs)),
+                kind: SimpleExpressionKind::BinaryOp(Box::new(lhs), op_token_kind, Box::new(rhs)),
                 span: new_span,
             };
         }
@@ -488,30 +471,56 @@ impl Parser {
         let start_span = token.span.start;
 
         let (kind, end_span) = match token.kind {
-            TokenKind::Identifier(ident) => {
+            TokenKind::Identifier(_) => {
                 if matches!(self.peek_nth(1).map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::LParen))) {
                     let func_call = self.parse_function_call()?;
-                    let end = self.tokens[self.position - 1].span.end;
+                    let end = func_call.span.end;
+
                     return Ok(Spanned {
-                        kind: AtomKind::FunctionCall(func_call),
+                        kind: AtomKind::FunctionCall(func_call.kind),
                         span: start_span..end,
                     });
                 }
 
                 self.consume();
-                (AtomKind::Identifier(ident.clone()), token.span.end)
+                let name_spanned = token.clone().into_spanned(|kind| match kind {
+                    TokenKind::Identifier(s) => s,
+                    _ => unreachable!(),
+                });
+                (AtomKind::Identifier(name_spanned), token.span.end)
             }
-            TokenKind::Number(num) => {
+            TokenKind::Number(_) => {
                 self.consume();
-                (AtomKind::Literal(Literal::Number(num)), token.span.end)
+                let literal_value = token
+                    .clone()
+                    .into_spanned(|kind| match kind {
+                        TokenKind::Number(num) => Literal::Number(num),
+                        _ => unreachable!(),
+                    })
+                    .kind;
+                (AtomKind::Literal(literal_value), token.span.end)
             }
-            TokenKind::String(str) => {
+            TokenKind::String(_) => {
                 self.consume();
-                (AtomKind::Literal(Literal::String(str.clone())), token.span.end)
+                let literal_value = token
+                    .clone()
+                    .into_spanned(|kind| match kind {
+                        TokenKind::String(s) => Literal::String(s),
+                        _ => unreachable!(),
+                    })
+                    .kind;
+                (AtomKind::Literal(literal_value), token.span.end)
             }
-            TokenKind::Bool(bool) => {
+            TokenKind::Bool(_) => {
                 self.consume();
-                (AtomKind::Literal(Literal::Bool(bool)), token.span.end)
+                let literal_value = token
+                    .clone()
+                    .into_spanned(|kind| match kind {
+                        TokenKind::Bool(b) => Literal::Bool(b),
+                        _ => unreachable!(),
+                    })
+                    .kind;
+                (AtomKind::Literal(literal_value), token.span.end)
             }
             TokenKind::Delimiter(Delimiter::LParen) => {
                 self.consume();
@@ -539,24 +548,31 @@ impl Parser {
         })
     }
 
-    fn parse_function_call(&mut self) -> Result<FunctionCall, ParserError> {
+    fn parse_function_call(&mut self) -> Result<Spanned<FunctionCall>, ParserError> {
         let name_token = self.expect(|kind| matches!(kind, TokenKind::Identifier(_)), Expected::Identifier)?;
-        let name = match name_token.kind {
+        let start_span = name_token.span.start;
+
+        let name = name_token.into_spanned(|kind| match kind {
             TokenKind::Identifier(s) => s,
             _ => unreachable!(),
-        };
+        });
 
         self.expect(
             |kind| matches!(kind, TokenKind::Delimiter(Delimiter::LParen)),
             Expected::OpeningDelimiter(Delimiter::LParen),
         )?;
         let arguments = self.parse_expression_list()?;
-        self.expect(
+        // This is the token that closes the span of the entire call
+        let rparen_token = self.expect(
             |kind| matches!(kind, TokenKind::Delimiter(Delimiter::RParen)),
             Expected::ClosingDelimiter(Delimiter::RParen),
         )?;
+        let end_span = rparen_token.span.end;
 
-        Ok(FunctionCall { name, arguments })
+        Ok(Spanned {
+            kind: FunctionCall { name, arguments },
+            span: start_span..end_span,
+        })
     }
 
     fn parse_expression_list(&mut self) -> Result<ExpressionList, ParserError> {

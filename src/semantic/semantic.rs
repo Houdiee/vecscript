@@ -2,7 +2,7 @@ use crate::{
     ast::*,
     semantic::{
         semantic_error::{SemanticError, SemanticErrorKind},
-        symbol_table::SymbolTable,
+        symbol_table::{SymbolInfo, SymbolTable},
     },
     token::Type,
 };
@@ -48,26 +48,81 @@ impl SemanticAnalyzer {
         match &binding.kind {
             BindingKind::Variable(vb) => {
                 self.dfs_expression(&vb.expr);
+
+                // Use &vb.name.kind for lookup (assuming SymbolTable accepts &String or &str)
+                if let Some(symbol_info) = self.symbol_table.lookup(&vb.name.kind) {
+                    self.errors.push(SemanticError {
+                        kind: SemanticErrorKind::VariableAlreadyDeclared {
+                            name: vb.name.kind.clone(), // Clone the String value for the error
+                            original_location: symbol_info.declaration_span.clone(),
+                        },
+                        span: vb.name.span.clone(),
+                    });
+                }
+
                 let variable_type = match &vb.var_type {
-                    Some(t) => t.clone(),
-                    None => Type::Unknown,
+                    TypeAnnotation::Some(t) => t.kind.clone(),
+                    TypeAnnotation::None => Type::Unknown,
                 };
-                self.symbol_table.insert(vb.name.clone(), variable_type);
+
+                self.symbol_table.insert(
+                    vb.name.kind.clone(), // Clone String for symbol table storage
+                    SymbolInfo {
+                        symbol_type: variable_type,
+                        declaration_span: vb.name.span.clone(),
+                    },
+                );
             }
             BindingKind::Function(fb) => {
                 let fn_type = match &fb.return_type {
-                    Some(t) => t.clone(),
-                    None => Type::Unknown,
+                    TypeAnnotation::Some(t) => t.kind.clone(),
+                    TypeAnnotation::None => Type::Unknown,
                 };
-                self.symbol_table.insert(fb.name.clone(), fn_type);
+
+                // Use &fb.name.kind for lookup
+                if self.symbol_table.lookup(&fb.name.kind).is_none() {
+                    self.symbol_table.insert(
+                        fb.name.kind.clone(), // Clone String for symbol table storage
+                        SymbolInfo {
+                            symbol_type: fn_type.clone(),
+                            declaration_span: fb.name.span.clone(),
+                        },
+                    );
+                } else {
+                    self.errors.push(SemanticError {
+                        kind: SemanticErrorKind::VariableAlreadyDeclared {
+                            name: fb.name.kind.clone(),
+                            original_location: self.symbol_table.lookup(&fb.name.kind).unwrap().declaration_span.clone(),
+                        },
+                        span: fb.name.span.clone(),
+                    });
+                }
 
                 self.symbol_table.enter_scope();
                 for param in &fb.params {
                     let param_type = match &param.param_type {
-                        Some(t) => t.clone(),
-                        None => Type::Unknown,
+                        TypeAnnotation::Some(t) => t.kind.clone(),
+                        TypeAnnotation::None => Type::Unknown,
                     };
-                    self.symbol_table.insert(param.name.clone(), param_type);
+
+                    // Use &param.name.kind for lookup
+                    if self.symbol_table.lookup(&param.name.kind).is_none() {
+                        self.symbol_table.insert(
+                            param.name.kind.clone(), // Clone String for symbol table storage
+                            SymbolInfo {
+                                symbol_type: param_type,
+                                declaration_span: param.name.span.clone(),
+                            },
+                        );
+                    } else {
+                        self.errors.push(SemanticError {
+                            kind: SemanticErrorKind::VariableAlreadyDeclared {
+                                name: param.name.kind.clone(),
+                                original_location: self.symbol_table.lookup(&param.name.kind).unwrap().declaration_span.clone(),
+                            },
+                            span: param.name.span.clone(),
+                        });
+                    }
                 }
                 self.dfs_expression(&fb.body);
                 self.symbol_table.exit_scope();
@@ -82,11 +137,30 @@ impl SemanticAnalyzer {
                 self.symbol_table.enter_scope();
                 for vb in bindings {
                     self.dfs_expression(&vb.expr);
+
+                    // Use &vb.name.kind for lookup
+                    if let Some(symbol_info) = self.symbol_table.lookup(&vb.name.kind) {
+                        self.errors.push(SemanticError {
+                            kind: SemanticErrorKind::VariableAlreadyDeclared {
+                                name: vb.name.kind.clone(),
+                                original_location: symbol_info.declaration_span.clone(),
+                            },
+                            span: vb.name.span.clone(),
+                        });
+                    }
+
                     let variable_type = match &vb.var_type {
-                        Some(t) => t.clone(),
-                        None => Type::Unknown,
+                        TypeAnnotation::Some(t) => t.kind.clone(),
+                        TypeAnnotation::None => Type::Unknown,
                     };
-                    self.symbol_table.insert(vb.name.clone(), variable_type);
+
+                    self.symbol_table.insert(
+                        vb.name.kind.clone(), // Clone String for symbol table storage
+                        SymbolInfo {
+                            symbol_type: variable_type,
+                            declaration_span: vb.name.span.clone(),
+                        },
+                    );
                 }
                 self.dfs_expression(body.as_ref());
                 self.symbol_table.exit_scope();
@@ -120,21 +194,23 @@ impl SemanticAnalyzer {
         match &atom.kind {
             AtomKind::Literal(_) => {}
             AtomKind::Identifier(name) => {
-                if self.symbol_table.lookup(name).is_none() {
+                // Use &name.kind for lookup
+                if self.symbol_table.lookup(&name.kind).is_none() {
                     self.errors.push(SemanticError {
-                        kind: SemanticErrorKind::UndefinedIdentifier { name: name.clone() },
-                        span: atom.span.clone(),
+                        kind: SemanticErrorKind::UndefinedIdentifier { name: name.kind.clone() },
+                        span: name.span.clone(),
                     });
                 }
             }
             AtomKind::Parenthesized(expr) => self.dfs_expression(expr.as_ref()),
             AtomKind::FunctionCall(func_call) => {
-                if self.symbol_table.lookup(&func_call.name).is_none() {
+                // Use &func_call.name.kind for lookup
+                if self.symbol_table.lookup(&func_call.name.kind).is_none() {
                     self.errors.push(SemanticError {
                         kind: SemanticErrorKind::UndefinedIdentifier {
-                            name: func_call.name.clone(),
+                            name: func_call.name.kind.clone(),
                         },
-                        span: atom.span.clone(),
+                        span: func_call.name.span.clone(),
                     });
                 }
                 for arg in &func_call.arguments {

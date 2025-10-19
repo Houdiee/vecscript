@@ -1,9 +1,25 @@
 use std::{fmt::Display, ops::Range};
 
+use crate::ast::Spanned;
+
 #[derive(Debug, Clone)]
 pub struct Token {
     pub kind: TokenKind,
     pub span: Range<usize>,
+}
+
+impl Token {
+    pub fn into_spanned<T, F>(self, f: F) -> Spanned<T>
+    where
+        F: FnOnce(TokenKind) -> T,
+    {
+        let value = f(self.kind);
+
+        Spanned {
+            kind: value,
+            span: self.span,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
