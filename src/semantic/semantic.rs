@@ -45,83 +45,31 @@ impl SemanticAnalyzer {
     }
 
     fn dfs_binding(&mut self, binding: &Binding) {
-        match &binding.kind {
+        match &binding.value {
             BindingKind::Variable(vb) => {
                 self.dfs_expression(&vb.expr);
-
-                if let Some(symbol_info) = self.symbol_table.lookup(&vb.name.kind) {
-                    self.errors.push(SemanticError {
-                        kind: SemanticErrorKind::IdentifierAlreadyDeclared {
-                            name: vb.name.kind.clone(),
-                            original_location: symbol_info.declaration_span.clone(),
-                        },
-                        span: vb.name.span.clone(),
-                    });
-                }
-
                 let variable_type = match &vb.var_type {
-                    TypeAnnotation::Some(t) => t.kind.clone(),
+                    TypeAnnotation::Some(t) => t.value.clone(),
                     TypeAnnotation::None => Type::Unknown,
                 };
-
-                self.symbol_table.insert(
-                    vb.name.kind.clone(),
-                    SymbolInfo {
-                        symbol_type: variable_type,
-                        declaration_span: vb.name.span.clone(),
-                    },
-                );
+                self.insert_binding_into_symbol_table(&vb.name, variable_type);
             }
             BindingKind::Function(fb) => {
                 let fn_type = match &fb.return_type {
-                    TypeAnnotation::Some(t) => t.kind.clone(),
+                    TypeAnnotation::Some(t) => t.value.clone(),
                     TypeAnnotation::None => Type::Unknown,
                 };
-
-                if self.symbol_table.lookup(&fb.name.kind).is_none() {
-                    self.symbol_table.insert(
-                        fb.name.kind.clone(),
-                        SymbolInfo {
-                            symbol_type: fn_type.clone(),
-                            declaration_span: fb.name.span.clone(),
-                        },
-                    );
-                } else {
-                    self.errors.push(SemanticError {
-                        kind: SemanticErrorKind::IdentifierAlreadyDeclared {
-                            name: fb.name.kind.clone(),
-                            original_location: self.symbol_table.lookup(&fb.name.kind).unwrap().declaration_span.clone(),
-                        },
-                        span: fb.name.span.clone(),
-                    });
-                }
+                self.insert_binding_into_symbol_table(&fb.name, fn_type.clone());
 
                 self.symbol_table.enter_scope();
                 for param in &fb.params {
                     let param_type = match &param.param_type {
-                        TypeAnnotation::Some(t) => t.kind.clone(),
+                        TypeAnnotation::Some(t) => t.value.clone(),
                         TypeAnnotation::None => Type::Unknown,
                     };
-
-                    // Use &param.name.kind for lookup
-                    if self.symbol_table.lookup(&param.name.kind).is_none() {
-                        self.symbol_table.insert(
-                            param.name.kind.clone(), // Clone String for symbol table storage
-                            SymbolInfo {
-                                symbol_type: param_type,
-                                declaration_span: param.name.span.clone(),
-                            },
-                        );
-                    } else {
-                        self.errors.push(SemanticError {
-                            kind: SemanticErrorKind::IdentifierAlreadyDeclared {
-                                name: param.name.kind.clone(),
-                                original_location: self.symbol_table.lookup(&param.name.kind).unwrap().declaration_span.clone(),
-                            },
-                            span: param.name.span.clone(),
-                        });
-                    }
+                    self.insert_binding_into_symbol_table(&param.name, param_type);
                 }
+
                 self.dfs_expression(&fb.body);
                 self.symbol_table.exit_scope();
             }
@@ -129,35 +77,17 @@ impl SemanticAnalyzer {
     }
 
     fn dfs_expression(&mut self, expression: &Expression) {
-        match &expression.kind {
+        match &expression.value {
             ExpressionKind::Simple(simple) => self.dfs_simple_expression(simple),
             ExpressionKind::LetIn { bindings, body } => {
                 self.symbol_table.enter_scope();
                 for vb in bindings {
                     self.dfs_expression(&vb.expr);
-
-                    if let Some(symbol_info) = self.symbol_table.lookup(&vb.name.kind) {
-                        self.errors.push(SemanticError {
-                            kind: SemanticErrorKind::IdentifierAlreadyDeclared {
-                                name: vb.name.kind.clone(),
-                                original_location: symbol_info.declaration_span.clone(),
-                            },
-                            span: vb.name.span.clone(),
-                        });
-                    }
-
                     let variable_type = match &vb.var_type {
-                        TypeAnnotation::Some(t) => t.kind.clone(),
+                        TypeAnnotation::Some(t) => t.value.clone(),
                         TypeAnnotation::None => Type::Unknown,
                     };
-
-                    self.symbol_table.insert(
-                        vb.name.kind.clone(),
-                        SymbolInfo {
-                            symbol_type: variable_type,
-                            declaration_span: vb.name.span.clone(),
-                        },
-                    );
+                    self.insert_binding_into_symbol_table(&vb.name, variable_type);
                 }
                 self.dfs_expression(body.as_ref());
                 self.symbol_table.exit_scope();
@@ -175,7 +105,7 @@ impl SemanticAnalyzer {
     }
 
     fn dfs_simple_expression(&mut self, simple_expression: &SimpleExpression) {
-        match &simple_expression.kind {
+        match &simple_expression.value {
             SimpleExpressionKind::Atom(atom) => self.dfs_atom(atom),
             SimpleExpressionKind::BinaryOp(left, _, right) => {
                 self.dfs_simple_expression(left.as_ref());
@@ -188,24 +118,22 @@ impl SemanticAnalyzer {
     }
 
     fn dfs_atom(&mut self, atom: &Atom) {
-        match &atom.kind {
+        match &atom.value {
             AtomKind::Literal(_) => {}
             AtomKind::Identifier(name) => {
-                // Use &name.kind for lookup
-                if self.symbol_table.lookup(&name.kind).is_none() {
+                if self.symbol_table.lookup(&name.value).is_none() {
                     self.errors.push(SemanticError {
-                        kind: SemanticErrorKind::UndefinedIdentifier { name: name.kind.clone() },
+                        kind: SemanticErrorKind::UndefinedIdentifier { name: name.value.clone() },
                         span: name.span.clone(),
                     });
                 }
             }
             AtomKind::Parenthesized(expr) => self.dfs_expression(expr.as_ref()),
             AtomKind::FunctionCall(func_call) => {
-                // Use &func_call.name.kind for lookup
-                if self.symbol_table.lookup(&func_call.name.kind).is_none() {
+                if self.symbol_table.lookup(&func_call.name.value).is_none() {
                     self.errors.push(SemanticError {
                         kind: SemanticErrorKind::UndefinedIdentifier {
-                            name: func_call.name.kind.clone(),
+                            name: func_call.name.value.clone(),
                         },
                         span: func_call.name.span.clone(),
                     });
@@ -215,5 +143,28 @@ impl SemanticAnalyzer {
                 }
             }
         }
+    }
+
+    fn insert_binding_into_symbol_table(&mut self, name_token: &Spanned<String>, symbol_type: Type) {
+        let name = &name_token.value;
+        let span = &name_token.span;
+
+        if let Some(symbol_info) = self.symbol_table.lookup(name) {
+            self.errors.push(SemanticError {
+                kind: SemanticErrorKind::IdentifierAlreadyDeclared {
+                    name: name.clone(),
+                    original_location: symbol_info.declaration_span.clone(),
+                },
+                span: span.clone(),
+            });
+        }
+
+        self.symbol_table.insert(
+            name.clone(),
+            SymbolInfo {
+                symbol_type,
+                declaration_span: span.clone(),
+            },
+        );
     }
 }

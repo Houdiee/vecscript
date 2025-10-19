@@ -8,7 +8,7 @@ pub struct Program {
 
 #[derive(Debug, Clone)]
 pub struct Spanned<T> {
-    pub kind: T,
+    pub value: T,
     pub span: Range<usize>,
 }
 

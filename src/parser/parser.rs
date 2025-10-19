@@ -116,7 +116,7 @@ impl Parser {
         };
 
         Ok(Spanned {
-            kind: binding_kind,
+            value: binding_kind,
             span: start_span..end_span,
         })
     }
@@ -267,7 +267,7 @@ impl Parser {
                 let where_suffix = self.parse_where_suffix()?;
 
                 let simple_as_expression = Spanned {
-                    kind: ExpressionKind::Simple(simple_expr.clone()),
+                    value: ExpressionKind::Simple(simple_expr.clone()),
                     span: simple_expr.span.clone(),
                 };
 
@@ -282,14 +282,14 @@ impl Parser {
                             end,
                         )
                     }
-                    None => (simple_as_expression.kind, simple_as_expression.span.end),
+                    None => (simple_as_expression.value, simple_as_expression.span.end),
                 };
                 (kind, end)
             }
         };
 
         Ok(Spanned {
-            kind,
+            value: kind,
             span: start_span..end_span,
         })
     }
@@ -378,7 +378,7 @@ impl Parser {
 
         while let Some(next_token) = self.peek() {
             let is_implicit_multiplication = || {
-                matches!(&lhs.kind, SimpleExpressionKind::Atom(atom) if matches!(&atom.kind, AtomKind::Literal(Literal::Number(_))))
+                matches!(&lhs.value, SimpleExpressionKind::Atom(atom) if matches!(&atom.value, AtomKind::Literal(Literal::Number(_))))
                     && matches!(next_token.kind, TokenKind::Identifier(_))
             };
 
@@ -398,7 +398,7 @@ impl Parser {
                 let new_span = lhs.span.start..rhs.span.end;
 
                 lhs = Spanned {
-                    kind: SimpleExpressionKind::BinaryOp(Box::new(lhs), op, Box::new(rhs)),
+                    value: SimpleExpressionKind::BinaryOp(Box::new(lhs), op, Box::new(rhs)),
                     span: new_span,
                 };
                 continue;
@@ -423,7 +423,7 @@ impl Parser {
             let new_span = lhs.span.start..rhs.span.end;
 
             lhs = Spanned {
-                kind: SimpleExpressionKind::BinaryOp(Box::new(lhs), op_token_kind, Box::new(rhs)),
+                value: SimpleExpressionKind::BinaryOp(Box::new(lhs), op_token_kind, Box::new(rhs)),
                 span: new_span,
             };
         }
@@ -451,7 +451,7 @@ impl Parser {
             let end_span = rhs.span.end;
 
             return Ok(Spanned {
-                kind: SimpleExpressionKind::UnaryOp(op, Box::new(rhs)),
+                value: SimpleExpressionKind::UnaryOp(op, Box::new(rhs)),
                 span: start_span..end_span,
             });
         }
@@ -461,7 +461,7 @@ impl Parser {
         let span = atom.span.clone();
 
         Ok(Spanned {
-            kind: SimpleExpressionKind::Atom(atom),
+            value: SimpleExpressionKind::Atom(atom),
             span,
         })
     }
@@ -477,7 +477,7 @@ impl Parser {
                     let end = func_call.span.end;
 
                     return Ok(Spanned {
-                        kind: AtomKind::FunctionCall(func_call.kind),
+                        value: AtomKind::FunctionCall(func_call.value),
                         span: start_span..end,
                     });
                 }
@@ -497,7 +497,7 @@ impl Parser {
                         TokenKind::Number(num) => Literal::Number(num),
                         _ => unreachable!(),
                     })
-                    .kind;
+                    .value;
                 (AtomKind::Literal(literal_value), token.span.end)
             }
             TokenKind::String(_) => {
@@ -508,7 +508,7 @@ impl Parser {
                         TokenKind::String(s) => Literal::String(s),
                         _ => unreachable!(),
                     })
-                    .kind;
+                    .value;
                 (AtomKind::Literal(literal_value), token.span.end)
             }
             TokenKind::Bool(_) => {
@@ -519,7 +519,7 @@ impl Parser {
                         TokenKind::Bool(b) => Literal::Bool(b),
                         _ => unreachable!(),
                     })
-                    .kind;
+                    .value;
                 (AtomKind::Literal(literal_value), token.span.end)
             }
             TokenKind::Delimiter(Delimiter::LParen) => {
@@ -543,7 +543,7 @@ impl Parser {
         };
 
         Ok(Spanned {
-            kind,
+            value: kind,
             span: start_span..end_span,
         })
     }
@@ -570,7 +570,7 @@ impl Parser {
         let end_span = rparen_token.span.end;
 
         Ok(Spanned {
-            kind: FunctionCall { name, arguments },
+            value: FunctionCall { name, arguments },
             span: start_span..end_span,
         })
     }

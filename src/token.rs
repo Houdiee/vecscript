@@ -14,11 +14,7 @@ impl Token {
         F: FnOnce(TokenKind) -> T,
     {
         let value = f(self.kind);
-
-        Spanned {
-            kind: value,
-            span: self.span,
-        }
+        Spanned { value, span: self.span }
     }
 }
 
