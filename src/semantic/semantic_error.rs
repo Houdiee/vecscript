@@ -16,13 +16,20 @@ pub enum SemanticErrorKind {
         found: Type,
     },
     NonBooleanCondition,
+    NonFunctionCall,
+    IncorrectArgumentCount {
+        expected: usize,
+        found: usize,
+        function_location: Range<usize>,
+    },
 }
 
 #[derive(Debug, Clone)]
 pub enum TypeMismatchKind {
-    IfElseReturn,
+    ThenElseReturn,
     TypeAnnotation,
     Arithmetic,
+    FunctionReturn,
 }
 
 #[derive(Debug, Clone)]

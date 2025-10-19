@@ -36,6 +36,7 @@ pub enum TokenKind {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     BaseType(BaseType),
+    Function(Vec<Type>, Box<Type>),
     Unknown,
 }
 
@@ -104,6 +105,7 @@ impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::BaseType(b) => write!(f, "{}", b),
+            Type::Function(param_types, return_type) => write!(f, "fun ({param_types:?}) -> {return_type}"),
             Type::Unknown => write!(f, "unknown"),
         }
     }

@@ -9,6 +9,8 @@ where [
 	k = 12,
 ]
 
+let incorrect_count = area(1, 2)
+
 let string = "hello"
 let b = balls
 let circle_area = area(3)

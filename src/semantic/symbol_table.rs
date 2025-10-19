@@ -5,6 +5,7 @@ pub struct SymbolTable {
     scopes: Vec<HashMap<String, SymbolInfo>>,
 }
 
+#[derive(Debug, Clone)]
 pub struct SymbolInfo {
     pub symbol_type: Type,
     pub declaration_span: Range<usize>,

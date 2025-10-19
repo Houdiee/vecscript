@@ -2,7 +2,7 @@ use ariadne::{Color, Label};
 
 use crate::{
     report_error::ReportableError,
-    semantic::semantic_error::{SemanticError, SemanticErrorKind},
+    semantic::semantic_error::{SemanticError, SemanticErrorKind, TypeMismatchKind},
 };
 use std::fmt::Display;
 
@@ -42,6 +42,23 @@ impl ReportableError for SemanticError {
                     .with_order(1),
             ],
 
+            IncorrectArgumentCount {
+                expected,
+                found: _,
+                function_location,
+            } => {
+                vec![
+                    Label::new((file_name, span.clone()))
+                        .with_message(format!("Should contain {expected} arguments"))
+                        .with_color(Color::Red)
+                        .with_order(1),
+                    Label::new((file_name, function_location.clone()))
+                        .with_message("Declared here")
+                        .with_color(Color::Red)
+                        .with_order(0),
+                ]
+            }
+
             _ => vec![
                 Label::new((file_name, span))
                     .with_message(format!("{}", self))
@@ -54,14 +71,41 @@ impl ReportableError for SemanticError {
 impl Display for SemanticError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use SemanticErrorKind::*;
+        use TypeMismatchKind::*;
         match &self.kind {
             UndefinedIdentifier { name } => write!(f, "Undefined identifier {name:?}"),
+            NonBooleanCondition => write!(f, "Condition doesn't evaluate to bool"),
             IdentifierAlreadyDeclared {
                 name,
                 original_location: _,
             } => write!(f, "Identifier {name:?} already declared"),
-            NonBooleanCondition => write!(f, "Condition doesn't evaluate to bool"),
-            _ => todo!(), // delete this later
+
+            TypeMismatch { kind, expected, found } => match kind {
+                ThenElseReturn => write!(
+                    f,
+                    "Mismatched types in 'if/else' branches. Expected branch to yield {expected:?}, but found {found:?}"
+                ),
+                TypeAnnotation => write!(
+                    f,
+                    "Mismatched type in variable assignment. Expected {expected:?}, but found {found:?}"
+                ),
+                Arithmetic => write!(
+                    f,
+                    "Invalid types for arithmetic operation. Expected {expected:?}, but found {found:?}"
+                ),
+                FunctionReturn => write!(
+                    f,
+                    "Function body returns the wrong type. Expected {expected:?}, but found {found:?}"
+                ),
+            },
+            NonFunctionCall => write!(f, "Attempted to call a value that is not a function"),
+            IncorrectArgumentCount {
+                expected,
+                found,
+                function_location: _,
+            } => {
+                write!(f, "Incorrect number of arguments. Expected {expected}, but found {found}")
+            }
         }
     }
 }

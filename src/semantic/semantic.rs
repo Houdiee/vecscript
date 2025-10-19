@@ -55,23 +55,40 @@ impl SemanticAnalyzer {
                 self.insert_binding_into_symbol_table(&vb.name, variable_type);
             }
             BindingKind::Function(fb) => {
-                let fn_type = match &fb.return_type {
+                let param_types: Vec<Type> = fb
+                    .params
+                    .iter()
+                    .map(|param| match &param.param_type {
+                        TypeAnnotation::Some(t) => t.value.clone(),
+                        TypeAnnotation::None => Type::Unknown,
+                    })
+                    .collect();
+
+                let return_type = match &fb.return_type {
                     TypeAnnotation::Some(t) => t.value.clone(),
                     TypeAnnotation::None => Type::Unknown,
                 };
-                self.insert_binding_into_symbol_table(&fb.name, fn_type.clone());
+
+                let fn_type = Type::Function(param_types.clone(), Box::new(return_type.clone()));
+                self.insert_binding_into_symbol_table(&fb.name, fn_type);
 
                 self.symbol_table.enter_scope();
-                for param in &fb.params {
-                    let param_type = match &param.param_type {
-                        TypeAnnotation::Some(t) => t.value.clone(),
-                        TypeAnnotation::None => Type::Unknown,
-                    };
+                for (param, param_type) in fb.params.iter().zip(param_types) {
                     self.insert_binding_into_symbol_table(&param.name, param_type);
                 }
-
-                self.dfs_expression(&fb.body);
+                let body_type = self.dfs_expression(&fb.body);
                 self.symbol_table.exit_scope();
+
+                if return_type != Type::Unknown && body_type != return_type {
+                    self.errors.push(SemanticError {
+                        kind: SemanticErrorKind::TypeMismatch {
+                            kind: TypeMismatchKind::FunctionReturn,
+                            expected: return_type,
+                            found: body_type,
+                        },
+                        span: fb.body.span.clone(),
+                    });
+                }
             }
         }
     }
@@ -125,7 +142,7 @@ impl SemanticAnalyzer {
                 if true_type != false_type {
                     self.errors.push(SemanticError {
                         kind: SemanticErrorKind::TypeMismatch {
-                            kind: TypeMismatchKind::IfElseReturn,
+                            kind: TypeMismatchKind::ThenElseReturn,
                             expected: true_type.clone(),
                             found: false_type,
                         },
@@ -146,7 +163,7 @@ impl SemanticAnalyzer {
                 if left_type != right_type {
                     self.errors.push(SemanticError {
                         kind: SemanticErrorKind::TypeMismatch {
-                            kind: TypeMismatchKind::IfElseReturn,
+                            kind: TypeMismatchKind::ThenElseReturn,
                             expected: left_type,
                             found: right_type.clone(),
                         },
@@ -181,19 +198,43 @@ impl SemanticAnalyzer {
             AtomKind::Parenthesized(expr) => self.dfs_expression(expr.as_ref()),
 
             AtomKind::FunctionCall(func_call) => {
-                let function_info = self.symbol_table.lookup(&func_call.name.value);
-                if function_info.is_none() {
-                    self.errors.push(SemanticError {
-                        kind: SemanticErrorKind::UndefinedIdentifier {
-                            name: func_call.name.value.clone(),
-                        },
-                        span: func_call.name.span.clone(),
-                    });
+                let function_info = self.symbol_table.lookup(&func_call.name.value).cloned();
+                let argument_types: Vec<Type> = func_call.arguments.iter().map(|arg| self.dfs_expression(arg)).collect();
+
+                match function_info {
+                    Some(info) => match &info.symbol_type {
+                        Type::Function(param_types, return_type) => {
+                            if param_types.len() != argument_types.len() {
+                                self.errors.push(SemanticError {
+                                    kind: SemanticErrorKind::IncorrectArgumentCount {
+                                        expected: param_types.len(),
+                                        found: argument_types.len(),
+                                        function_location: info.declaration_span,
+                                    },
+                                    span: atom.span.clone(),
+                                });
+                            }
+                            *return_type.clone()
+                        }
+
+                        _ => {
+                            self.errors.push(SemanticError {
+                                kind: SemanticErrorKind::NonFunctionCall,
+                                span: func_call.name.span.clone(),
+                            });
+                            Type::Unknown
+                        }
+                    },
+                    None => {
+                        self.errors.push(SemanticError {
+                            kind: SemanticErrorKind::UndefinedIdentifier {
+                                name: func_call.name.value.clone(),
+                            },
+                            span: func_call.name.span.clone(),
+                        });
+                        Type::Unknown
+                    }
                 }
-                for arg in &func_call.arguments {
-                    self.dfs_expression(arg);
-                }
-                todo!()
             }
         }
     }
