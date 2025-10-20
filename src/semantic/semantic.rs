@@ -162,7 +162,9 @@ impl SemanticAnalyzer {
                 if true_type != false_type {
                     self.errors.push(SemanticError {
                         kind: SemanticErrorKind::TypeMismatch {
-                            kind: TypeMismatchKind::ThenElseReturn,
+                            kind: TypeMismatchKind::ThenElseReturn {
+                                then_location: true_branch.span.clone(),
+                            },
                             expected: true_type.clone(),
                             found: false_type,
                         },

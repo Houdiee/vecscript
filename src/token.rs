@@ -106,7 +106,7 @@ impl Display for Type {
         match self {
             Type::BaseType(b) => write!(f, "{}", b),
             Type::Function(param_types, return_type) => write!(f, "fun ({param_types:?}) -> {return_type}"),
-            Type::Unknown => write!(f, "unknown"),
+            Type::Unknown => write!(f, "Unknown"),
         }
     }
 }

@@ -59,11 +59,24 @@ impl ReportableError for SemanticError {
                 ]
             }
 
-            TypeMismatch { kind, expected, found } => vec![
-                Label::new((file_name, span))
-                    .with_message(format!("Found {found}, expected {expected}"))
-                    .with_color(Color::Red),
-            ],
+            TypeMismatch { kind, expected, found } => match kind {
+                TypeMismatchKind::ThenElseReturn { then_location } => vec![
+                    Label::new((file_name, then_location.clone()))
+                        .with_message(format!("Evalutes to {expected}"))
+                        .with_color(Color::Red)
+                        .with_order(0),
+                    Label::new((file_name, span))
+                        .with_message(format!("Expected {expected}, found {found}"))
+                        .with_color(Color::Red)
+                        .with_order(1),
+                ],
+
+                _ => vec![
+                    Label::new((file_name, span))
+                        .with_message(format!("Expected {expected}, found {found}"))
+                        .with_color(Color::Red),
+                ],
+            },
 
             _ => vec![
                 Label::new((file_name, span))
@@ -87,7 +100,7 @@ impl Display for SemanticError {
             } => write!(f, "Identifier {name:?} already declared"),
 
             TypeMismatch { kind, expected, found } => match kind {
-                ThenElseReturn => write!(
+                ThenElseReturn { then_location: _ } => write!(
                     f,
                     "Mismatched types in 'if/else' branches. Expected branch to yield type {expected}, but found {found}"
                 ),

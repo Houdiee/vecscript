@@ -26,7 +26,7 @@ pub enum SemanticErrorKind {
 
 #[derive(Debug, Clone)]
 pub enum TypeMismatchKind {
-    ThenElseReturn,
+    ThenElseReturn { then_location: Range<usize> },
     TypeAnnotation,
     Arithmetic,
     FunctionReturn,
