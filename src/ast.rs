@@ -60,9 +60,13 @@ pub enum ExpressionKind {
         true_branch: Box<Expression>,
         false_branch: Box<Expression>,
     },
+    DoBlock {
+        expressions: ExpressionList,
+    },
 }
 pub type Expression = Spanned<ExpressionKind>;
 pub type ExpressionList = Vec<Expression>;
+pub type DoSequence = Vec<Expression>;
 
 #[derive(Debug, Clone)]
 pub enum SimpleExpressionKind {
@@ -71,6 +75,7 @@ pub enum SimpleExpressionKind {
     UnaryOp(Operator, Box<SimpleExpression>),
 }
 pub type SimpleExpression = Spanned<SimpleExpressionKind>;
+pub type WhereSuffix = VariableBindingList;
 
 #[derive(Debug, Clone)]
 pub enum AtomKind {

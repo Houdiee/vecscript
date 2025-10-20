@@ -102,6 +102,8 @@ impl<'src> Lexer<'src> {
             "if" => TokenKind::Keyword(Keyword::If),
             "then" => TokenKind::Keyword(Keyword::Then),
             "else" => TokenKind::Keyword(Keyword::Else),
+            "do" => TokenKind::Keyword(Keyword::Do),
+            "end" => TokenKind::Keyword(Keyword::End),
 
             // Booleans
             "true" => TokenKind::Bool(true),
@@ -111,6 +113,7 @@ impl<'src> Lexer<'src> {
             "Num" => TokenKind::Type(Type::BaseType(BaseType::Num)),
             "Str" => TokenKind::Type(Type::BaseType(BaseType::Str)),
             "Bool" => TokenKind::Type(Type::BaseType(BaseType::Bool)),
+            "Nothing" => TokenKind::Type(Type::BaseType(BaseType::Nothing)),
 
             // Operators
             "is" => TokenKind::Operator(Operator::Is),

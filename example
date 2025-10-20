@@ -13,6 +13,8 @@ let incorrect_count = area(1, 2)
 let incorrect_argument = area("hello")
 let string_arithm : Str = "a" + "b"
 let bad_arithmetic : Str = 2 + "hello"^3
+let is_true = "hello" is "hello" or "hi"
+let baldy : Nothing = let x = 1
 
 let string = "hello"
 let b = balls
@@ -23,6 +25,10 @@ let complicated = let h = a where [ a = 1 ] in 2 + h
 let sum = 1 + 1
 let one_of =
 	let is_true = true, hello = "hello" in
-	if is_true
-	then 123
-	else "bad"
+	if is_true then 123
+
+let bruh = +1
+let do_block : Nothing = do
+	print("hello")
+	print("world")
+end

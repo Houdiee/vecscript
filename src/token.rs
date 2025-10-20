@@ -22,6 +22,7 @@ impl Token {
 pub enum TokenKind {
     Identifier(String),
     Keyword(Keyword),
+    Nothing,
     Delimiter(Delimiter),
     Type(Type),
     Operator(Operator),
@@ -45,13 +46,16 @@ pub enum BaseType {
     Num,
     Str,
     Bool,
+    Nothing,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Keyword {
     Let,
-    Where,
     In,
+    Where,
+    Do,
+    End,
     If,
     Then,
     Else,
@@ -97,6 +101,7 @@ impl Display for BaseType {
             BaseType::Num => write!(f, "Num"),
             BaseType::Str => write!(f, "Str"),
             BaseType::Bool => write!(f, "Bool"),
+            BaseType::Nothing => write!(f, "Nothing"),
         }
     }
 }
@@ -118,6 +123,8 @@ impl Display for Keyword {
             Let => write!(f, "let"),
             Where => write!(f, "where"),
             In => write!(f, "in"),
+            Do => write!(f, "do"),
+            End => write!(f, "end"),
             If => write!(f, "if"),
             Then => write!(f, "then"),
             Else => write!(f, "else"),
@@ -178,6 +185,7 @@ impl Display for TokenKind {
             Operator(o) => write!(f, "operator '{}'", o),
             Number(n) => write!(f, "number '{}'", n),
             Bool(b) => write!(f, "bool '{}'", b),
+            Nothing => write!(f, "nothing"),
             String(s) => write!(f, "string '{}", s),
             Assign => write!(f, "="),
             Newline => write!(f, "newline"),

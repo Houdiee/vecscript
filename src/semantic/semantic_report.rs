@@ -102,7 +102,7 @@ impl Display for SemanticError {
             TypeMismatch { kind, expected, found } => match kind {
                 ThenElseReturn { then_location: _ } => write!(
                     f,
-                    "Mismatched types in 'if/else' branches. Expected branch to yield type {expected}, but found {found}"
+                    "Mismatched types in 'if then/else' branches. Expected branch to yield type {expected}, but found {found}"
                 ),
                 TypeAnnotation => write!(
                     f,

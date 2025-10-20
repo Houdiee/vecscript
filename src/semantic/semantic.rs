@@ -48,7 +48,7 @@ impl SemanticAnalyzer {
         match &binding.value {
             BindingKind::Variable(vb) => {
                 let evaluated_type = self.dfs_expression(&vb.expr);
-                let mut variable_type = match &vb.var_type {
+                let variable_type = match &vb.var_type {
                     TypeAnnotation::Some(annotation) => {
                         if annotation.value != evaluated_type {
                             self.errors.push(SemanticError {
@@ -173,6 +173,13 @@ impl SemanticAnalyzer {
                 }
                 true_type
             }
+
+            ExpressionKind::DoBlock { expressions } => {
+                for expr in expressions {
+                    self.dfs_expression(expr);
+                }
+                Type::BaseType(BaseType::Nothing)
+            }
         }
     }
 
@@ -187,20 +194,8 @@ impl SemanticAnalyzer {
                     return Type::Unknown;
                 }
 
-                if left_type != right_type {
-                    self.errors.push(SemanticError {
-                        kind: SemanticErrorKind::TypeMismatch {
-                            kind: TypeMismatchKind::InvalidOperatorUsage,
-                            expected: left_type,
-                            found: right_type.clone(),
-                        },
-                        span: right.span.clone(),
-                    });
-                    return Type::Unknown;
-                }
-
                 match op {
-                    Operator::Plus | Operator::Minus | Operator::Multiply | Operator::Divide | Operator::Power | Operator::Modulo => {
+                    Operator::Plus | Operator::Minus | Operator::Multiply | Operator::Divide | Operator::Modulo => {
                         if left_type != Type::BaseType(BaseType::Num) {
                             self.errors.push(SemanticError {
                                 kind: SemanticErrorKind::TypeMismatch {
@@ -208,35 +203,136 @@ impl SemanticAnalyzer {
                                     expected: Type::BaseType(BaseType::Num),
                                     found: left_type.clone(),
                                 },
-                                span: simple_expression.span.clone(),
+                                span: left.span.clone(),
                             });
+                        }
+
+                        if right_type != Type::BaseType(BaseType::Num) {
+                            self.errors.push(SemanticError {
+                                kind: SemanticErrorKind::TypeMismatch {
+                                    kind: TypeMismatchKind::Arithmetic,
+                                    expected: Type::BaseType(BaseType::Num),
+                                    found: right_type.clone(),
+                                },
+                                span: right.span.clone(),
+                            });
+                        }
+                        if left_type != Type::BaseType(BaseType::Num) || right_type != Type::BaseType(BaseType::Num) {
                             return Type::Unknown;
                         }
-                        left_type
+
+                        Type::BaseType(BaseType::Num)
                     }
 
-                    Operator::Is | Operator::Not => {
-                        todo!()
-                    }
-
-                    Operator::And | Operator::Or => {
-                        if left_type != Type::BaseType(BaseType::Bool) {
+                    Operator::Power => {
+                        if left_type != Type::BaseType(BaseType::Num) || right_type != Type::BaseType(BaseType::Num) {
                             self.errors.push(SemanticError {
                                 kind: SemanticErrorKind::TypeMismatch {
                                     kind: TypeMismatchKind::InvalidOperatorUsage,
-                                    expected: Type::BaseType(BaseType::Bool),
-                                    found: left_type,
+                                    expected: Type::BaseType(BaseType::Num),
+                                    found: left_type.clone(),
                                 },
                                 span: simple_expression.span.clone(),
                             });
                             return Type::Unknown;
                         }
+                        Type::BaseType(BaseType::Num)
+                    }
+
+                    Operator::Is | Operator::Not => {
+                        if left_type != right_type {
+                            self.errors.push(SemanticError {
+                                kind: SemanticErrorKind::TypeMismatch {
+                                    kind: TypeMismatchKind::InvalidOperatorUsage,
+                                    expected: left_type.clone(),
+                                    found: right_type,
+                                },
+                                span: right.span.clone(),
+                            });
+                            return Type::Unknown;
+                        }
                         Type::BaseType(BaseType::Bool)
+                    }
+
+                    Operator::And | Operator::Or => {
+                        let required = Type::BaseType(BaseType::Bool);
+                        let mut is_error = false;
+                        if left_type != required {
+                            self.errors.push(SemanticError {
+                                kind: SemanticErrorKind::TypeMismatch {
+                                    kind: TypeMismatchKind::InvalidOperatorUsage,
+                                    expected: required.clone(),
+                                    found: left_type,
+                                },
+                                span: left.span.clone(),
+                            });
+                            is_error = true;
+                        }
+
+                        if right_type != required {
+                            self.errors.push(SemanticError {
+                                kind: SemanticErrorKind::TypeMismatch {
+                                    kind: TypeMismatchKind::InvalidOperatorUsage,
+                                    expected: required.clone(),
+                                    found: right_type,
+                                },
+                                span: right.span.clone(),
+                            });
+                            is_error = true;
+                        }
+
+                        if is_error { Type::Unknown } else { required }
                     }
                     _ => Type::Unknown,
                 }
             }
-            SimpleExpressionKind::UnaryOp(_, expr) => self.dfs_simple_expression(expr.as_ref()),
+            SimpleExpressionKind::UnaryOp(op, expr) => {
+                let expr_type = self.dfs_simple_expression(expr.as_ref());
+
+                match op {
+                    Operator::Minus | Operator::Plus => {
+                        if expr_type != Type::BaseType(BaseType::Num) {
+                            self.errors.push(SemanticError {
+                                kind: SemanticErrorKind::TypeMismatch {
+                                    kind: TypeMismatchKind::InvalidOperatorUsage,
+                                    expected: Type::BaseType(BaseType::Num),
+                                    found: expr_type,
+                                },
+                                span: expr.span.clone(),
+                            });
+                            return Type::Unknown;
+                        }
+                        Type::BaseType(BaseType::Num)
+                    }
+
+                    Operator::Not => {
+                        if expr_type != Type::BaseType(BaseType::Bool) {
+                            self.errors.push(SemanticError {
+                                kind: SemanticErrorKind::TypeMismatch {
+                                    kind: TypeMismatchKind::InvalidOperatorUsage,
+                                    expected: Type::BaseType(BaseType::Bool),
+                                    found: expr_type,
+                                },
+                                span: expr.span.clone(),
+                            });
+                            return Type::Unknown;
+                        }
+                        Type::BaseType(BaseType::Bool)
+                    }
+
+                    _ => {
+                        self.errors.push(SemanticError {
+                            kind: SemanticErrorKind::TypeMismatch {
+                                kind: TypeMismatchKind::InvalidOperatorUsage,
+                                expected: Type::BaseType(BaseType::Bool),
+                                found: expr_type,
+                            },
+                            span: expr.span.clone(),
+                        });
+                        Type::Unknown
+                    }
+                }
+            }
         }
     }
 

@@ -1,3 +1,53 @@
+/*
+Program ::= { Definition }
+
+Definition ::= LetDefinition TERMINATE
+             | TypeDefinition TERMINATE
+             ;
+
+LetDefinition ::= LET Binding ;
+Binding ::= VariableBinding | FunctionBinding ;
+
+FunctionBinding ::= IDENTIFIER LPAREN [ ParameterList ] RPAREN [ ReturnType ] ASSIGN [ NEWLINE ] Expression ;
+VariableBinding ::= IDENTIFIER [ TypeAnnotation ] ASSIGN [ NEWLINE ] Expression ;
+VariableBindingList ::= VariableBinding { COMMA [ NEWLINE ] VariableBinding [ COMMA ] ;
+
+Parameter ::= IDENTIFIER [ TypeAnnotation ] ;
+ParameterList ::= Parameter { COMMA Parameter } ;
+
+TypeAnnotation ::= COLON TYPE ;
+ReturnType ::= ARROW TypeAnnotation ;
+
+Expression ::= SimpleExpression [ WhereSuffix ]
+             | LetInExpression
+             | IfElseExpression
+             | DoBlock
+             ;
+
+SimpleExpression ::= [ OPERATOR ] Atom { OPERATOR Atom } ;
+
+WhereSuffix ::= [ NEWLINE ] WHERE [ NEWLINE ] LBRACK VariableBindingList [ NEWLINE ] RBRACK ;
+DoBlock ::= DO [ NEWLINE ] DoSequence [ NEWLINE ] END ;
+DoSequence ::= Expression { TERMINATE Expression } ;
+
+LetInExpression ::= LET VariableBindingList IN Expression ;
+
+IfElseExpression ::= IF Expression [ NEWLINE ] THEN Expression [ NEWLINE ] ELSE Expression ;
+
+Atom ::= NUMBER
+       | STRING
+       | BOOL
+       | NOTHING
+       | IDENTIFIER
+       | LPAREN Expression RParen
+       | FUNCTIONCALL
+       ;
+
+
+FUNCTIONCALL ::= IDENTIFIER LPAREN [ ExpressionList ] RPAREN ;
+ExpressionList ::= Expression { COMMA Expression } ;
+*/
+
 use crate::{
     ast::*,
     parser::parser_error::{Expected, ParserError, ParserErrorKind},
@@ -262,6 +312,14 @@ impl Parser {
                 };
                 (expr, end)
             }
+            TokenKind::Keyword(Keyword::Do) => {
+                let expr = self.parse_do_block()?;
+                let end = match &expr {
+                    ExpressionKind::DoBlock { expressions } => expressions.last().unwrap().span.end,
+                    _ => unreachable!(),
+                };
+                (expr, end)
+            }
             _ => {
                 let simple_expr = self.parse_simple_expression()?;
                 let where_suffix = self.parse_where_suffix()?;
@@ -342,7 +400,7 @@ impl Parser {
         })
     }
 
-    fn parse_where_suffix(&mut self) -> Result<Option<VariableBindingList>, ParserError> {
+    fn parse_where_suffix(&mut self) -> Result<Option<WhereSuffix>, ParserError> {
         if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Newline))
             && matches!(self.peek_nth(1).map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::Where)))
         {
@@ -367,6 +425,36 @@ impl Parser {
             Expected::ClosingDelimiter(Delimiter::RBrack),
         )?;
         Ok(Some(bindings))
+    }
+
+    fn parse_do_block(&mut self) -> Result<ExpressionKind, ParserError> {
+        self.expect(
+            |kind| matches!(kind, TokenKind::Keyword(Keyword::Do)),
+            Expected::Keyword(Keyword::Do),
+        )?;
+        self.parse_optional_newline()?;
+        let expressions = self.parse_do_sequence()?;
+        self.expect(
+            |kind| matches!(kind, TokenKind::Keyword(Keyword::End)),
+            Expected::Keyword(Keyword::End),
+        )?;
+        Ok(ExpressionKind::DoBlock { expressions })
+    }
+
+    fn parse_do_sequence(&mut self) -> Result<DoSequence, ParserError> {
+        let mut expressions = ExpressionList::new();
+        expressions.push(self.parse_expression()?);
+        loop {
+            if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::End))) {
+                break;
+            }
+            self.parse_terminator()?;
+            if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::End))) {
+                break;
+            }
+            expressions.push(self.parse_expression()?);
+        }
+        Ok(expressions)
     }
 
     fn parse_simple_expression(&mut self) -> Result<SimpleExpression, ParserError> {
@@ -457,7 +545,6 @@ impl Parser {
         }
 
         let atom = self.parse_atom()?;
-
         let span = atom.span.clone();
 
         Ok(Spanned {
@@ -522,6 +609,16 @@ impl Parser {
                     .value;
                 (AtomKind::Literal(literal_value), token.span.end)
             }
+            TokenKind::Nothing => {
+                let literal_value = token
+                    .clone()
+                    .into_spanned(|kind| match kind {
+                        TokenKind::Bool(b) => Literal::Bool(b),
+                        _ => unreachable!(),
+                    })
+                    .value;
+                (AtomKind::Literal(literal_value), token.span.end)
+            }
             TokenKind::Delimiter(Delimiter::LParen) => {
                 self.consume();
                 let expr = self.parse_expression()?;
@@ -562,7 +659,6 @@ impl Parser {
             Expected::OpeningDelimiter(Delimiter::LParen),
         )?;
         let arguments = self.parse_expression_list()?;
-        // This is the token that closes the span of the entire call
         let rparen_token = self.expect(
             |kind| matches!(kind, TokenKind::Delimiter(Delimiter::RParen)),
             Expected::ClosingDelimiter(Delimiter::RParen),
@@ -674,7 +770,7 @@ fn get_bp(op: Operator) -> (BindingPower, BindingPower) {
 fn get_unary_bp(op: Operator) -> Option<BindingPower> {
     use Operator::*;
     match op {
-        Minus => Some(79),
+        Minus | Plus => Some(79),
         _ => None,
     }
 }
