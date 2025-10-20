@@ -94,9 +94,9 @@ pub enum Operator {
 impl Display for BaseType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BaseType::Num => write!(f, "num"),
-            BaseType::Str => write!(f, "str"),
-            BaseType::Bool => write!(f, "bool"),
+            BaseType::Num => write!(f, "Num"),
+            BaseType::Str => write!(f, "Str"),
+            BaseType::Bool => write!(f, "Bool"),
         }
     }
 }

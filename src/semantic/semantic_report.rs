@@ -45,19 +45,33 @@ impl ReportableError for SemanticError {
             IncorrectArgumentCount {
                 expected,
                 found: _,
-                function_location,
+                original_location,
             } => {
                 vec![
                     Label::new((file_name, span.clone()))
                         .with_message(format!("Should contain {expected} arguments"))
                         .with_color(Color::Red)
                         .with_order(1),
-                    Label::new((file_name, function_location.clone()))
+                    Label::new((file_name, original_location.clone()))
                         .with_message("Declared here")
                         .with_color(Color::Red)
                         .with_order(0),
                 ]
             }
+
+            TypeMismatch { kind, expected, found: _ } => match kind {
+                TypeMismatchKind::Argument => vec![
+                    Label::new((file_name, span.clone()))
+                        .with_message(format!("Change this to type {expected}"))
+                        .with_color(Color::Red)
+                        .with_order(1),
+                ],
+                _ => vec![
+                    Label::new((file_name, span))
+                        .with_message(format!("{}", self))
+                        .with_color(Color::Red),
+                ],
+            },
 
             _ => vec![
                 Label::new((file_name, span))
@@ -83,26 +97,27 @@ impl Display for SemanticError {
             TypeMismatch { kind, expected, found } => match kind {
                 ThenElseReturn => write!(
                     f,
-                    "Mismatched types in 'if/else' branches. Expected branch to yield {expected:?}, but found {found:?}"
+                    "Mismatched types in 'if/else' branches. Expected branch to yield type {expected}, but found {found}"
                 ),
                 TypeAnnotation => write!(
                     f,
-                    "Mismatched type in variable assignment. Expected {expected:?}, but found {found:?}"
+                    "Mismatched type in variable assignment. Expected type {expected}, but found {found}"
                 ),
                 Arithmetic => write!(
                     f,
-                    "Invalid types for arithmetic operation. Expected {expected:?}, but found {found:?}"
+                    "Invalid types for arithmetic operation. Expected type {expected}, but found {found}"
                 ),
                 FunctionReturn => write!(
                     f,
-                    "Function body returns the wrong type. Expected {expected:?}, but found {found:?}"
+                    "Function body returns the wrong type. Expected return type {expected}, but found {found}",
                 ),
+                Argument => write!(f, "Passed argument has the wrong type. Expected type {expected}, but found {found}"),
             },
             NonFunctionCall => write!(f, "Attempted to call a value that is not a function"),
             IncorrectArgumentCount {
                 expected,
                 found,
-                function_location: _,
+                original_location: _,
             } => {
                 write!(f, "Incorrect number of arguments. Expected {expected}, but found {found}")
             }

@@ -54,6 +54,7 @@ impl SemanticAnalyzer {
                 };
                 self.insert_binding_into_symbol_table(&vb.name, variable_type);
             }
+
             BindingKind::Function(fb) => {
                 let param_types: Vec<Type> = fb
                     .params
@@ -64,12 +65,13 @@ impl SemanticAnalyzer {
                     })
                     .collect();
 
-                let return_type = match &fb.return_type {
+                let mut return_type = match &fb.return_type {
                     TypeAnnotation::Some(t) => t.value.clone(),
                     TypeAnnotation::None => Type::Unknown,
                 };
 
                 let fn_type = Type::Function(param_types.clone(), Box::new(return_type.clone()));
+
                 self.insert_binding_into_symbol_table(&fb.name, fn_type);
 
                 self.symbol_table.enter_scope();
@@ -77,9 +79,13 @@ impl SemanticAnalyzer {
                     self.insert_binding_into_symbol_table(&param.name, param_type);
                 }
                 let body_type = self.dfs_expression(&fb.body);
+                if return_type == Type::Unknown {
+                    return_type = body_type.clone();
+                }
+
                 self.symbol_table.exit_scope();
 
-                if return_type != Type::Unknown && body_type != return_type {
+                if body_type != return_type {
                     self.errors.push(SemanticError {
                         kind: SemanticErrorKind::TypeMismatch {
                             kind: TypeMismatchKind::FunctionReturn,
@@ -199,21 +205,35 @@ impl SemanticAnalyzer {
 
             AtomKind::FunctionCall(func_call) => {
                 let function_info = self.symbol_table.lookup(&func_call.name.value).cloned();
-                let argument_types: Vec<Type> = func_call.arguments.iter().map(|arg| self.dfs_expression(arg)).collect();
 
                 match function_info {
                     Some(info) => match &info.symbol_type {
                         Type::Function(param_types, return_type) => {
-                            if param_types.len() != argument_types.len() {
+                            if param_types.len() != func_call.arguments.len() {
                                 self.errors.push(SemanticError {
                                     kind: SemanticErrorKind::IncorrectArgumentCount {
                                         expected: param_types.len(),
-                                        found: argument_types.len(),
-                                        function_location: info.declaration_span,
+                                        found: func_call.arguments.len(),
+                                        original_location: info.declaration_span,
                                     },
                                     span: atom.span.clone(),
                                 });
                             }
+
+                            for (idx, arg_expr) in func_call.arguments.iter().enumerate() {
+                                let arg_type = self.dfs_expression(&arg_expr);
+                                if idx < param_types.len() && arg_type != param_types[idx] {
+                                    self.errors.push(SemanticError {
+                                        kind: SemanticErrorKind::TypeMismatch {
+                                            kind: TypeMismatchKind::Argument,
+                                            expected: param_types[idx].clone(),
+                                            found: arg_type,
+                                        },
+                                        span: arg_expr.span.clone(),
+                                    });
+                                }
+                            }
+
                             *return_type.clone()
                         }
 

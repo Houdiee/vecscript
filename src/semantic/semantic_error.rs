@@ -20,7 +20,7 @@ pub enum SemanticErrorKind {
     IncorrectArgumentCount {
         expected: usize,
         found: usize,
-        function_location: Range<usize>,
+        original_location: Range<usize>,
     },
 }
 
@@ -30,6 +30,7 @@ pub enum TypeMismatchKind {
     TypeAnnotation,
     Arithmetic,
     FunctionReturn,
+    Argument,
 }
 
 #[derive(Debug, Clone)]
