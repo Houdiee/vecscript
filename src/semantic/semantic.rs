@@ -175,13 +175,11 @@ impl SemanticAnalyzer {
             }
 
             ExpressionKind::DoExpression { expressions } => {
+                let mut result_type = Type::Unknown;
                 for expr in expressions {
-                    self.dfs_expression(expr);
+                    result_type = self.dfs_expression(expr);
                 }
-                match expressions.last() {
-                    Some(last) => self.dfs_expression(last),
-                    None => Type::Unknown,
-                }
+                result_type
             }
         }
     }
