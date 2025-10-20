@@ -37,4 +37,8 @@ impl SymbolTable {
     pub fn lookup(&self, name: &str) -> Option<&SymbolInfo> {
         self.scopes.iter().rev().find_map(|scope| scope.get(name))
     }
+
+    pub fn lookup_in_current_scope(&self, name: &str) -> Option<&SymbolInfo> {
+        self.scopes.last().and_then(|scope| scope.get(name))
+    }
 }

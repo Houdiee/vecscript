@@ -31,6 +31,7 @@ pub enum TypeMismatchKind {
     Arithmetic,
     FunctionReturn,
     Argument,
+    InvalidOperatorUsage,
 }
 
 #[derive(Debug, Clone)]

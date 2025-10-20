@@ -4,7 +4,7 @@ use crate::{
         semantic_error::{SemanticError, SemanticErrorKind, TypeMismatchKind},
         symbol_table::{SymbolInfo, SymbolTable},
     },
-    token::{BaseType, Type},
+    token::{BaseType, Operator, Type},
 };
 
 pub struct SemanticAnalyzer {
@@ -47,11 +47,24 @@ impl SemanticAnalyzer {
     fn dfs_binding(&mut self, binding: &Binding) {
         match &binding.value {
             BindingKind::Variable(vb) => {
-                self.dfs_expression(&vb.expr);
-                let variable_type = match &vb.var_type {
-                    TypeAnnotation::Some(t) => t.value.clone(),
-                    TypeAnnotation::None => Type::Unknown,
+                let evaluated_type = self.dfs_expression(&vb.expr);
+                let mut variable_type = match &vb.var_type {
+                    TypeAnnotation::Some(annotation) => {
+                        if annotation.value != evaluated_type {
+                            self.errors.push(SemanticError {
+                                kind: SemanticErrorKind::TypeMismatch {
+                                    kind: TypeMismatchKind::TypeAnnotation,
+                                    expected: annotation.value.clone(),
+                                    found: evaluated_type,
+                                },
+                                span: vb.expr.span.clone(),
+                            });
+                        }
+                        annotation.value.clone()
+                    }
+                    TypeAnnotation::None => evaluated_type,
                 };
+
                 self.insert_binding_into_symbol_table(&vb.name, variable_type);
             }
 
@@ -71,30 +84,31 @@ impl SemanticAnalyzer {
                 };
 
                 let fn_type = Type::Function(param_types.clone(), Box::new(return_type.clone()));
-
                 self.insert_binding_into_symbol_table(&fb.name, fn_type);
 
                 self.symbol_table.enter_scope();
-                for (param, param_type) in fb.params.iter().zip(param_types) {
+                for (param, param_type) in fb.params.iter().zip(param_types.clone()) {
                     self.insert_binding_into_symbol_table(&param.name, param_type);
                 }
                 let body_type = self.dfs_expression(&fb.body);
                 if return_type == Type::Unknown {
                     return_type = body_type.clone();
                 }
-
                 self.symbol_table.exit_scope();
 
                 if body_type != return_type {
                     self.errors.push(SemanticError {
                         kind: SemanticErrorKind::TypeMismatch {
                             kind: TypeMismatchKind::FunctionReturn,
-                            expected: return_type,
+                            expected: return_type.clone(),
                             found: body_type,
                         },
                         span: fb.body.span.clone(),
                     });
                 }
+
+                let updated_fn_type = Type::Function(param_types, Box::new(return_type));
+                self.update_binding_into_symbol_table(&fb.name, updated_fn_type);
             }
         }
     }
@@ -163,20 +177,62 @@ impl SemanticAnalyzer {
     fn dfs_simple_expression(&mut self, simple_expression: &SimpleExpression) -> Type {
         match &simple_expression.value {
             SimpleExpressionKind::Atom(atom) => self.dfs_atom(atom),
-            SimpleExpressionKind::BinaryOp(left, _, right) => {
+            SimpleExpressionKind::BinaryOp(left, op, right) => {
                 let left_type = self.dfs_simple_expression(left.as_ref());
                 let right_type = self.dfs_simple_expression(right.as_ref());
+
+                if left_type == Type::Unknown || right_type == Type::Unknown {
+                    return Type::Unknown;
+                }
+
                 if left_type != right_type {
                     self.errors.push(SemanticError {
                         kind: SemanticErrorKind::TypeMismatch {
-                            kind: TypeMismatchKind::ThenElseReturn,
+                            kind: TypeMismatchKind::InvalidOperatorUsage,
                             expected: left_type,
                             found: right_type.clone(),
                         },
                         span: right.span.clone(),
                     });
+                    return Type::Unknown;
                 }
-                right_type
+
+                match op {
+                    Operator::Plus | Operator::Minus | Operator::Multiply | Operator::Divide | Operator::Power | Operator::Modulo => {
+                        if left_type != Type::BaseType(BaseType::Num) {
+                            self.errors.push(SemanticError {
+                                kind: SemanticErrorKind::TypeMismatch {
+                                    kind: TypeMismatchKind::Arithmetic,
+                                    expected: Type::BaseType(BaseType::Num),
+                                    found: left_type.clone(),
+                                },
+                                span: simple_expression.span.clone(),
+                            });
+                            return Type::Unknown;
+                        }
+                        left_type
+                    }
+
+                    Operator::Is | Operator::Not => {
+                        todo!()
+                    }
+
+                    Operator::And | Operator::Or => {
+                        if left_type != Type::BaseType(BaseType::Bool) {
+                            self.errors.push(SemanticError {
+                                kind: SemanticErrorKind::TypeMismatch {
+                                    kind: TypeMismatchKind::InvalidOperatorUsage,
+                                    expected: Type::BaseType(BaseType::Bool),
+                                    found: left_type,
+                                },
+                                span: simple_expression.span.clone(),
+                            });
+                            return Type::Unknown;
+                        }
+                        Type::BaseType(BaseType::Bool)
+                    }
+                    _ => Type::Unknown,
+                }
             }
             SimpleExpressionKind::UnaryOp(_, expr) => self.dfs_simple_expression(expr.as_ref()),
         }
@@ -263,7 +319,7 @@ impl SemanticAnalyzer {
         let name = &spanned_name.value;
         let span = &spanned_name.span;
 
-        if let Some(symbol_info) = self.symbol_table.lookup(name) {
+        if let Some(symbol_info) = self.symbol_table.lookup_in_current_scope(name) {
             self.errors.push(SemanticError {
                 kind: SemanticErrorKind::IdentifierAlreadyDeclared {
                     name: name.clone(),
@@ -272,6 +328,19 @@ impl SemanticAnalyzer {
                 span: span.clone(),
             });
         }
+
+        self.symbol_table.insert(
+            name.clone(),
+            SymbolInfo {
+                symbol_type,
+                declaration_span: span.clone(),
+            },
+        );
+    }
+
+    fn update_binding_into_symbol_table(&mut self, spanned_name: &Spanned<String>, symbol_type: Type) {
+        let name = &spanned_name.value;
+        let span = &spanned_name.span;
 
         self.symbol_table.insert(
             name.clone(),

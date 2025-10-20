@@ -11,6 +11,8 @@ where [
 
 let incorrect_count = area(1, 2)
 let incorrect_argument = area("hello")
+let string_arithm : Str = "a" + "b"
+let bad_arithmetic : Str = 2 + "hello"^3
 
 let string = "hello"
 let b = balls

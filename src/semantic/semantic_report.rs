@@ -44,34 +44,26 @@ impl ReportableError for SemanticError {
 
             IncorrectArgumentCount {
                 expected,
-                found: _,
+                found,
                 original_location,
             } => {
                 vec![
-                    Label::new((file_name, span.clone()))
-                        .with_message(format!("Should contain {expected} arguments"))
-                        .with_color(Color::Red)
-                        .with_order(1),
                     Label::new((file_name, original_location.clone()))
-                        .with_message("Declared here")
+                        .with_message(format!("Takes in {expected} arguments"))
                         .with_color(Color::Red)
                         .with_order(0),
+                    Label::new((file_name, span.clone()))
+                        .with_message(format!("{found} arguments passed"))
+                        .with_color(Color::Red)
+                        .with_order(1),
                 ]
             }
 
-            TypeMismatch { kind, expected, found: _ } => match kind {
-                TypeMismatchKind::Argument => vec![
-                    Label::new((file_name, span.clone()))
-                        .with_message(format!("Change this to type {expected}"))
-                        .with_color(Color::Red)
-                        .with_order(1),
-                ],
-                _ => vec![
-                    Label::new((file_name, span))
-                        .with_message(format!("{}", self))
-                        .with_color(Color::Red),
-                ],
-            },
+            TypeMismatch { kind, expected, found } => vec![
+                Label::new((file_name, span))
+                    .with_message(format!("Found {found}, expected {expected}"))
+                    .with_color(Color::Red),
+            ],
 
             _ => vec![
                 Label::new((file_name, span))
@@ -112,6 +104,7 @@ impl Display for SemanticError {
                     "Function body returns the wrong type. Expected return type {expected}, but found {found}",
                 ),
                 Argument => write!(f, "Passed argument has the wrong type. Expected type {expected}, but found {found}"),
+                InvalidOperatorUsage => write!(f, "Invalid operator usage. Expected type {expected} but found {found}"),
             },
             NonFunctionCall => write!(f, "Attempted to call a value that is not a function"),
             IncorrectArgumentCount {
