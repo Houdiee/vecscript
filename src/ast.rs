@@ -60,13 +60,12 @@ pub enum ExpressionKind {
         true_branch: Box<Expression>,
         false_branch: Box<Expression>,
     },
-    DoBlock {
+    DoExpression {
         expressions: ExpressionList,
     },
 }
 pub type Expression = Spanned<ExpressionKind>;
 pub type ExpressionList = Vec<Expression>;
-pub type DoSequence = Vec<Expression>;
 
 #[derive(Debug, Clone)]
 pub enum SimpleExpressionKind {
@@ -91,6 +90,7 @@ pub enum Literal {
     Number(f64),
     String(String),
     Bool(bool),
+    Nothing,
 }
 
 #[derive(Debug, Clone)]

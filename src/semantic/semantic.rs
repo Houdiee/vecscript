@@ -174,11 +174,14 @@ impl SemanticAnalyzer {
                 true_type
             }
 
-            ExpressionKind::DoBlock { expressions } => {
+            ExpressionKind::DoExpression { expressions } => {
                 for expr in expressions {
                     self.dfs_expression(expr);
                 }
-                Type::BaseType(BaseType::Nothing)
+                match expressions.last() {
+                    Some(last) => self.dfs_expression(last),
+                    None => Type::Unknown,
+                }
             }
         }
     }
@@ -342,6 +345,7 @@ impl SemanticAnalyzer {
                 Literal::Number(_) => Type::BaseType(BaseType::Num),
                 Literal::String(_) => Type::BaseType(BaseType::Str),
                 Literal::Bool(_) => Type::BaseType(BaseType::Bool),
+                Literal::Nothing => Type::BaseType(BaseType::Nothing),
             },
 
             AtomKind::Identifier(name) => match self.symbol_table.lookup(&name.value) {

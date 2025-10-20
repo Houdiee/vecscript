@@ -103,7 +103,6 @@ impl<'src> Lexer<'src> {
             "then" => TokenKind::Keyword(Keyword::Then),
             "else" => TokenKind::Keyword(Keyword::Else),
             "do" => TokenKind::Keyword(Keyword::Do),
-            "end" => TokenKind::Keyword(Keyword::End),
 
             // Booleans
             "true" => TokenKind::Bool(true),

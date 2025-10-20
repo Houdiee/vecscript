@@ -22,13 +22,20 @@ let circle_area = area(3)
 let square_area = square_area(1)
 let complicated = let h = a where [ a = 1 ] in 2 + h
 
+let print(str : Str) -> Nothing = str
+
 let sum = 1 + 1
 let one_of =
 	let is_true = true, hello = "hello" in
 	if is_true then 123
 
 let bruh = +1
-let do_block : Nothing = do
-	print("hello")
-	print("world")
-end
+let final_result =
+	let x = "hello" in
+	if x is "hello"
+	then do
+		print("hello"),
+		print("world"),
+		"invalid"
+	else do print("error"), -1
+

@@ -25,10 +25,10 @@ Expression ::= SimpleExpression [ WhereSuffix ]
              ;
 
 SimpleExpression ::= [ OPERATOR ] Atom { OPERATOR Atom } ;
+ExpressionList ::= Expression { COMMA [ NEWLINE ] Expression } ;
 
 WhereSuffix ::= [ NEWLINE ] WHERE [ NEWLINE ] LBRACK VariableBindingList [ NEWLINE ] RBRACK ;
-DoBlock ::= DO [ NEWLINE ] DoSequence [ NEWLINE ] END ;
-DoSequence ::= Expression { TERMINATE Expression } ;
+DoExpression ::= DO [ NEWLINE ] ExpressionList ;
 
 LetInExpression ::= LET VariableBindingList IN Expression ;
 
@@ -45,7 +45,6 @@ Atom ::= NUMBER
 
 
 FUNCTIONCALL ::= IDENTIFIER LPAREN [ ExpressionList ] RPAREN ;
-ExpressionList ::= Expression { COMMA Expression } ;
 */
 
 use crate::{
@@ -315,7 +314,7 @@ impl Parser {
             TokenKind::Keyword(Keyword::Do) => {
                 let expr = self.parse_do_block()?;
                 let end = match &expr {
-                    ExpressionKind::DoBlock { expressions } => expressions.last().unwrap().span.end,
+                    ExpressionKind::DoExpression { expressions } => expressions.last().unwrap().span.end,
                     _ => unreachable!(),
                 };
                 (expr, end)
@@ -433,28 +432,8 @@ impl Parser {
             Expected::Keyword(Keyword::Do),
         )?;
         self.parse_optional_newline()?;
-        let expressions = self.parse_do_sequence()?;
-        self.expect(
-            |kind| matches!(kind, TokenKind::Keyword(Keyword::End)),
-            Expected::Keyword(Keyword::End),
-        )?;
-        Ok(ExpressionKind::DoBlock { expressions })
-    }
-
-    fn parse_do_sequence(&mut self) -> Result<DoSequence, ParserError> {
-        let mut expressions = ExpressionList::new();
-        expressions.push(self.parse_expression()?);
-        loop {
-            if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::End))) {
-                break;
-            }
-            self.parse_terminator()?;
-            if matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::End))) {
-                break;
-            }
-            expressions.push(self.parse_expression()?);
-        }
-        Ok(expressions)
+        let expressions = self.parse_expression_list()?;
+        Ok(ExpressionKind::DoExpression { expressions })
     }
 
     fn parse_simple_expression(&mut self) -> Result<SimpleExpression, ParserError> {
@@ -478,9 +457,6 @@ impl Parser {
 
                 let op = Operator::Multiply;
 
-                // NOTE: No token consumption here for the implicit op.
-                // The implicit multiply span is calculated from the LHS start to the RHS end.
-
                 let rhs = self.parse_simple_expression_with_min_bp(rbp)?;
 
                 let new_span = lhs.span.start..rhs.span.end;
@@ -503,7 +479,6 @@ impl Parser {
                 break;
             }
 
-            // Consume the operator token now that we know we're parsing a binary operation.
             let _op_token = self.consume().unwrap();
 
             let rhs = self.parse_simple_expression_with_min_bp(rbp)?;
@@ -578,46 +553,31 @@ impl Parser {
             }
             TokenKind::Number(_) => {
                 self.consume();
-                let literal_value = token
-                    .clone()
-                    .into_spanned(|kind| match kind {
-                        TokenKind::Number(num) => Literal::Number(num),
-                        _ => unreachable!(),
-                    })
-                    .value;
+                let literal_value = match token.kind {
+                    TokenKind::Number(num) => Literal::Number(num),
+                    _ => unreachable!(),
+                };
                 (AtomKind::Literal(literal_value), token.span.end)
             }
             TokenKind::String(_) => {
                 self.consume();
-                let literal_value = token
-                    .clone()
-                    .into_spanned(|kind| match kind {
-                        TokenKind::String(s) => Literal::String(s),
-                        _ => unreachable!(),
-                    })
-                    .value;
+                let literal_value = match token.kind {
+                    TokenKind::String(s) => Literal::String(s),
+                    _ => unreachable!(),
+                };
                 (AtomKind::Literal(literal_value), token.span.end)
             }
             TokenKind::Bool(_) => {
                 self.consume();
-                let literal_value = token
-                    .clone()
-                    .into_spanned(|kind| match kind {
-                        TokenKind::Bool(b) => Literal::Bool(b),
-                        _ => unreachable!(),
-                    })
-                    .value;
+                let literal_value = match token.kind {
+                    TokenKind::Bool(b) => Literal::Bool(b),
+                    _ => unreachable!(),
+                };
                 (AtomKind::Literal(literal_value), token.span.end)
             }
-            TokenKind::Nothing => {
-                let literal_value = token
-                    .clone()
-                    .into_spanned(|kind| match kind {
-                        TokenKind::Bool(b) => Literal::Bool(b),
-                        _ => unreachable!(),
-                    })
-                    .value;
-                (AtomKind::Literal(literal_value), token.span.end)
+            TokenKind::Type(Type::BaseType(BaseType::Nothing)) => {
+                self.consume();
+                (AtomKind::Literal(Literal::Nothing), token.span.end)
             }
             TokenKind::Delimiter(Delimiter::LParen) => {
                 self.consume();
@@ -681,6 +641,7 @@ impl Parser {
         expressions.push(self.parse_expression()?);
         while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Comma))) {
             self.consume();
+            self.parse_optional_newline()?;
             expressions.push(self.parse_expression()?);
         }
         Ok(expressions)

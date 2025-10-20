@@ -22,7 +22,6 @@ impl Token {
 pub enum TokenKind {
     Identifier(String),
     Keyword(Keyword),
-    Nothing,
     Delimiter(Delimiter),
     Type(Type),
     Operator(Operator),
@@ -55,7 +54,6 @@ pub enum Keyword {
     In,
     Where,
     Do,
-    End,
     If,
     Then,
     Else,
@@ -124,7 +122,6 @@ impl Display for Keyword {
             Where => write!(f, "where"),
             In => write!(f, "in"),
             Do => write!(f, "do"),
-            End => write!(f, "end"),
             If => write!(f, "if"),
             Then => write!(f, "then"),
             Else => write!(f, "else"),
